@@ -18,6 +18,20 @@ AZURE_BLOB_NAME = "{{var.value.azure_blob_name}}"
 AZURE_BLOB_PATH = "{{var.value.azure_blob_path}}"
 AZURE_CONTAINER_NAME = "{{var.value.azure_container_name}}"
 
+# agregar paquete apache-airflow-providers-microsoft-azure a pypi en composer  
+# crear conexion: ID azure_blob_connection  
+# - tipo Azure Blob Storage 
+# - Login cuenta de almacenamiento 
+# - clave de acceso 
+# - string de acceso 
+# - token SAS
+# crear variables 
+# - azure_container_name: Es el nombre del contenedor 
+# - azure_blob_path: Es la URL del BLOB 
+# - azure_blob_name: Es el nombre del BLOB 
+# - gcs_bucket: el nombre del bucket 
+# - gcp_project: el ID del proyecto
+
 #%% DAG configs
 yesterday = datetime.datetime.combine(
     datetime.datetime.today() - datetime.timedelta(1), datetime.datetime.min.time()
@@ -37,7 +51,7 @@ default_dag_args = {
 with models.DAG(
     "azure_to_gcs_dag",
     # Continue to run DAG once per day
-    schedule_interval=datetime.timedelta(days=1),
+    schedule_interval=datetime.timedelta(days=10),
     default_args=default_dag_args,
 ) as dag:
 
