@@ -1,7 +1,6 @@
 from airflow.models import DAG
-from airflow.contrib.sensors.gcs_sensor  import GoogleCloudStorageObjectSensor
-from airflow.contrib.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
-
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.utils.dates import days_ago
 import datetime
 
@@ -18,14 +17,14 @@ with DAG(
     default_args=default_args
 ) as dag: 
 
-    gcs_sensor = GoogleCloudStorageObjectSensor(
+    gcs_sensor = GCSObjectExistenceSensor(
         task_id= "gcs_sensor",
         bucket='tenpo_test',
         object='input_tenpo1.txt',
         poke_interval=60*10 ,      
     )
 
-    gcs_copy=GoogleCloudStorageToGoogleCloudStorageOperator(
+    gcs_copy=GCSToGCSOperator(
         task_id="gcs_to_gcs",
         source_bucket='tenpo_test',
         source_object='input_tenpo.txt',

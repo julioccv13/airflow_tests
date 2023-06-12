@@ -1,5 +1,5 @@
 from airflow.models import DAG
-from airflow.contrib.sensors.gcs_sensor  import GoogleCloudStorageObjectSensor
+from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.operators.dataproc import DataprocInstantiateWorkflowTemplateOperator
 
 from airflow.utils.dates import days_ago
@@ -18,7 +18,7 @@ with DAG(
     default_args=default_args
 ) as dag: 
 
-    gcs_sensor = GoogleCloudStorageObjectSensor(
+    gcs_sensor = GCSObjectExistenceSensor(
         task_id= "gcs_sensor",
         bucket='tenpo_test',
         object='input_tenpo1.txt',
@@ -26,8 +26,8 @@ with DAG(
     )
 
     start_dataproc = DataprocInstantiateWorkflowTemplateOperator(
-        task_id="start_dataproc",
-        template_id="sparkpi",
+        task_id="start_dataproc", 
+        template_id="decrypt",
         project_id="tenpo-mark-vii",
         region="us-central1",
     )
