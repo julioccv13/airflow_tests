@@ -8,6 +8,7 @@ from airflow.providers.google.cloud.sensors.gcs import GCSObjectsWithPrefixExist
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from google.cloud import bigquery
@@ -20,7 +21,7 @@ default_args = {
     "start_date"      : days_ago( 1 ),
     "retries"         : 1,
     "retry_delay"     : datetime.timedelta( minutes= 10 ),
-    "email_on_failure": False,
+    "email_on_failure": True,
     "email_on_retry": False,
 }
 
@@ -184,7 +185,7 @@ with DAG(
         task_id='read_ipm_gold',
         provide_context=True,
         python_callable=read_gcs_sql,
-        op_kwargs={
+                op_kwargs={
         "query": "ipm_staging_to_gold.sql"
         }
         )
@@ -258,6 +259,7 @@ with DAG(
         task_id='read_match',
         provide_context=True,
         python_callable=read_gcs_sql,
+        trigger_rule=TriggerRule.ALL_DONE,
         op_kwargs={
         "query": "match.sql"
         }
