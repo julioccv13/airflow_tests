@@ -17,14 +17,14 @@ default_args = {
     "start_date"      : days_ago( 1 ),
     "retries"         : 1,
     "retry_delay"     : datetime.timedelta( minutes= 10 ),
-    "email_on_failure": False,
+    "email_on_failure": True,
     "email_on_retry": False,
 }
 
+
 # DAG Variables used
 PROJECT_NAME = Variable.get('project1')
-SOURCE_BUCKET = 'mark-vii-conciliacion'
-TARGET_BUCKET = 'mark-vii-conciliacion'
+DATA_BUCKET = 'mark-vii-conciliacion'
 PREFIX = 'sql'
 
 # Reads sql files from GCS bucket
@@ -35,7 +35,7 @@ def read_gcs_sql(query):
     else:
         object_name = f'{query}'
     resp_byte = hook.download_as_byte_array(
-    bucket_name = SOURCE_BUCKET,
+    bucket_name = DATA_BUCKET,
     object_name = object_name,
             )
 
