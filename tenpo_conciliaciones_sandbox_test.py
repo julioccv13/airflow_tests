@@ -289,6 +289,7 @@ with DAG(
 # Move the files of the day from the source bucket to a backup bucket to leave it empty for the next day process        
     move_files_ipm = GCSToGCSOperator(
         task_id='move_files_ipm',
+        gcp_conn_id=GCS_CONN_ID,
         source_bucket=SOURCE_BUCKET,
         source_objects=['data/ipm/MCI.AR.T112.M.E0073610.D*'],
         destination_bucket=TARGET_BUCKET,
@@ -298,6 +299,7 @@ with DAG(
 
     move_files_opd = GCSToGCSOperator(
         task_id='move_files_opd',
+        gcp_conn_id=GCS_CONN_ID,
         source_bucket=SOURCE_BUCKET,
         source_objects=['data/opd/PLJ61110.FINT0003*'],
         destination_bucket=TARGET_BUCKET,
@@ -307,6 +309,7 @@ with DAG(
 
     move_files_anulation = GCSToGCSOperator(
         task_id='move_files_anulation',
+        gcp_conn_id=GCS_CONN_ID,
         source_bucket=SOURCE_BUCKET,
         source_objects=['data/anulation/PLJ00032.TRXS.ANULADAS*'],
         destination_bucket=TARGET_BUCKET,
@@ -316,6 +319,7 @@ with DAG(
 
     move_files_incident = GCSToGCSOperator(
         task_id='move_files_incident',
+        gcp_conn_id=GCS_CONN_ID,
         source_bucket=SOURCE_BUCKET,
         source_objects=['data/incident/PLJ62100-CONS-INC-PEND-TENPO*'],
         destination_bucket=TARGET_BUCKET,
