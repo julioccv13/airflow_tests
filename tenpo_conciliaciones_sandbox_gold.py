@@ -9,7 +9,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.dates import days_ago
+  
 from airflow.utils.state import State
 from google.cloud import bigquery
 import datetime
