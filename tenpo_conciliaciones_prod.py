@@ -126,7 +126,7 @@ with DAG(
             'FILES_OPERATORS':'gs://tenpo-conciliacion-prd/artifacts/dataproc/operators/*',
             'INPUT':'gs://storageproductioncluster-prod-replica/ipm-files/MCI.AR.T112.M.E0073610.D*',
             'TYPE_FILE':'ipm',
-            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prod.ipm',
+            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prd.ipm',
             'MODE_DEPLOY':'prod'
         },
         )
@@ -143,7 +143,7 @@ with DAG(
             'FILES_OPERATORS':'gs://tenpo-conciliacion-prd/artifacts/dataproc/operators/*',
             'INPUT':'gs://storageproductioncluster-prod-replica/opd-v2-files/PLJ61110.FINT0003*',
             'TYPE_FILE':'opd',
-            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prod',
+            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prd',
             'MODE_DEPLOY':'prod'
         },
         )
@@ -160,7 +160,7 @@ with DAG(
             'FILES_OPERATORS':'gs://tenpo-conciliacion-prd/artifacts/dataproc/operators/*',
             'INPUT' : 'gs://storageproductioncluster-prod-replica/anulaciones-files/PLJ00032.TRXS.ANULADAS*',
             'TYPE_FILE':'anulation',
-            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prod.opd_anulation',
+            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prd.opd_anulation',
             'MODE_DEPLOY':'prod'
         },
         )
@@ -177,7 +177,7 @@ with DAG(
             'FILES_OPERATORS':'gs://tenpo-conciliacion-prd/artifacts/dataproc/operators/*',
             'INPUT':'gs://storageproductioncluster-prod-replica/incidencias-files/PLJ62100-CONS-INC-PEND-TENPO*',
             'TYPE_FILE':'incident',
-            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prod.opd_incident',
+            'OUTPUT':'tenpo-datalake-prod.tenpo_conciliacion_staging_prd.opd_incident',
             'MODE_DEPLOY':'prod'
         },
         ) 
