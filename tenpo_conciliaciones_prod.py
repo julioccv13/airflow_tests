@@ -40,6 +40,7 @@ DATAPROC_TEMPLATE_OPD = Variable.get(f'conciliacion_dataproc_template_opd_{env}'
 DATAPROC_TEMPLATE_ANULATION = Variable.get(f'conciliacion_dataproc_template_anulation_{env}')
 DATAPROC_TEMPLATE_INCIDENT = Variable.get(f'conciliacion_dataproc_template_incident_{env}')
 DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
+DATAPROC_TEMPLATE_PDC = Variable.get(f'conciliacion_dataproc_template_pdc_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
 INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
@@ -50,21 +51,25 @@ OPD_PREFIX = Variable.get(f"opd_prefix_{env}")
 ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
 INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
 CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
+PDC_PREFIX = Variable.get(f"pdc_prefix_{env}")
 REGION_OPD = Variable.get(f"region_opd_{env}")
 REGION_IPM = Variable.get(f"region_ipm_{env}")
 REGION_ANULATION = Variable.get(f"region_anulation_{env}")
 REGION_INCIDENT = Variable.get(f"region_incident_{env}")
 REGION_CCA = Variable.get(f"region_cca_{env}")
+REGION_PDC = Variable.get(f"region_pdc_{env}")
 ipm_type_file = Variable.get(f"type_file_ipm_{env}")
 opd_type_file = Variable.get(f"type_file_opd_{env}")
 anulation_type_file = Variable.get(f"type_file_anulation_{env}")
 incident_type_file = Variable.get(f"type_file_incident_{env}")
 cca_type_file = Variable.get(f"type_file_cca_{env}")
+pdc_type_file = Variable.get(f"type_file_pdc_{env}")
 ipm_workers = Variable.get(f"ipm_workers_{env}")
 opd_workers = Variable.get(f"opd_workers_{env}")
 anulation_workers = Variable.get(f"anulation_workers_{env}")
 incident_workers = Variable.get(f"incident_workers_{env}")
 cca_workers = Variable.get(f"cca_workers_{env}")
+pdc_workers = Variable.get(f"pdc_workers_{env}")
 opd_query = Variable.get("opd_gold_query")
 ipm_query = Variable.get("ipm_gold_query")
 anulation_query = Variable.get("anulation_gold_query")
@@ -168,6 +173,16 @@ with DAG(
         soft_fail=True,
         )
     
+    pdc_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "pdc_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=PDC_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail=True,
+        )
+    
 # Action defined by file availability
     opd_file_availability = BranchPythonOperator(
         task_id='opd_file_availability',
@@ -228,7 +243,19 @@ with DAG(
         provide_context=True,   
         trigger_rule='all_done'
         )
-
+    
+    pdc_file_availability = BranchPythonOperator(
+        task_id='pdc_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'pdc_sensor',
+            'dataproc_task' : 'dataproc_pdc',
+            'sql_task' : 'read_match'           
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+    
 # Instantiate a dataproc workflow template for each type of file to process 
     dataproc_ipm = DataprocInstantiateWorkflowTemplateOperator(
         task_id="dataproc_ipm",
@@ -311,6 +338,23 @@ with DAG(
             'INPUT':f'{INPUT_FILES}{CCA_PREFIX}*',
             'TYPE_FILE':cca_type_file,
             'OUTPUT':f'{OUTPUT_DATASET}.cca',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        ) 
+    
+    dataproc_pdc = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_pdc',
+        project_id=PROJECT_NAME,
+        region=REGION_PDC,
+        template_id=DATAPROC_TEMPLATE_PDC,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-pdc-{DEPLOYMENT}',
+            'NUMWORKERS':pdc_workers,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{PDC_PREFIX}*',
+            'TYPE_FILE':pdc_type_file,
+            'OUTPUT':f'{OUTPUT_DATASET}.pdc',
             'MODE_DEPLOY': DEPLOYMENT
         },
         ) 
@@ -460,12 +504,14 @@ start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, read_match]
 start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, read_match]
 start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, read_match]
 start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, read_match]
+start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, read_match]
 
 dataproc_opd >> read_opd_gold >> execute_opd_gold >> read_match 
 dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> read_match 
 dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> read_match
 dataproc_incident >> read_incident_gold >> execute_incident_gold >> read_match
 dataproc_cca >> read_match
+dataproc_pdc >> read_match
 
 read_match >> execute_match >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
 
