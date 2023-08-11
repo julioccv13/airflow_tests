@@ -70,11 +70,15 @@ anulation_workers = Variable.get(f"anulation_workers_{env}")
 incident_workers = Variable.get(f"incident_workers_{env}")
 cca_workers = Variable.get(f"cca_workers_{env}")
 pdc_workers = Variable.get(f"pdc_workers_{env}")
-opd_query = Variable.get("opd_gold_query")
-ipm_query = Variable.get("ipm_gold_query")
-anulation_query = Variable.get("anulation_gold_query")
-incident_query = Variable.get("incident_gold_query")
-match_query = Variable.get("match_query")
+opd_query = Variable.get(f"opd_gold_query_{env}")
+ipm_query = Variable.get(f"ipm_gold_query_{env}")
+anulation_query = Variable.get(f"anulation_gold_query_{env}")
+incident_query = Variable.get(f"incident_gold_query_{env}")
+cca_query = Variable.get(f"cca_gold_query_{env}")
+pdc_query = Variable.get(f"pdc_gold_query_{env}")
+match_query = Variable.get(f"match_query_{env}")
+match_query_cca = Variable.get(f"cca_match_query_{env}")
+match_query_pdc = Variable.get(f"pdc_match_query_{env}")
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
@@ -396,6 +400,24 @@ with DAG(
         }
         )     
 
+    read_cca_gold = PythonOperator(
+        task_id='read_cca_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": cca_query
+        }
+        )  
+    
+    read_pdc_gold = PythonOperator(
+        task_id='read_pdc_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": pdc_query
+        }
+        )  
+    
 # Execute a sql file for each type of file pass the tables from staging to gold     
     execute_ipm_gold = PythonOperator(
         task_id='execute_ipm_gold',
@@ -433,9 +455,26 @@ with DAG(
         }
         )
 
+    execute_cca_gold = PythonOperator(
+        task_id='execute_cca_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_cca_gold') }}"
+        }
+        )
+    
+    execute_pdc_gold = PythonOperator(
+        task_id='execute_pdc_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_pdc_gold') }}"
+        }
+        )
 # Read the sql file with the Match query for conciliation from a GCS bucket 
-    read_match = PythonOperator(
-        task_id='read_match',
+    read_match_ipm = PythonOperator(
+        task_id='read_match_ipm',
         provide_context=True,
         python_callable=read_gcs_sql,
         trigger_rule='none_failed',
@@ -443,14 +482,52 @@ with DAG(
         "query": match_query
         }
         )
+    
+    read_match_cca = PythonOperator(
+        task_id='read_match_cca',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        trigger_rule='none_failed',
+        op_kwargs={
+        "query": match_query_cca
+        }
+        )
+    
+    read_match_pdc = PythonOperator(
+        task_id='read_match_pdc',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        trigger_rule='none_failed',
+        op_kwargs={
+        "query": match_query_pdc
+        }
+        )
 
 # Execute the sql file with the Match query for conciliation     
-    execute_match = PythonOperator(
-        task_id='execute_match',
+    execute_match_ipm = PythonOperator(
+        task_id='execute_match_ipm',
         provide_context=True,
         python_callable=query_bq,
         op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match') }}"
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_ipm') }}"
+        }
+        )
+    
+    execute_match_cca = PythonOperator(
+        task_id='execute_match_cca',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_cca') }}"
+        }
+        )
+    
+    execute_match_pdc = PythonOperator(
+        task_id='execute_match_pdc',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_pdc') }}"
         }
         )
 
@@ -490,6 +567,24 @@ with DAG(
         destination_object=f'{BACKUP_FOLDER}incident/PLJ62100-CONS-INC-PEND-TENPO',
         move_object=True
         ) 
+    
+    move_files_cca = GCSToGCSOperator(
+        task_id='move_files_cca',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{CCA_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}cca/EXAP730',
+        move_object=True
+        ) 
+    
+    move_files_pdc = GCSToGCSOperator(
+        task_id='move_files_pdc',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{PDC_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}pdc/',
+        move_object=True
+        ) 
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
@@ -499,20 +594,22 @@ with DAG(
 # Task dependencies
 
 
-start_task >> opd_sensor >> opd_file_availability >> [dataproc_opd, read_match]
-start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, read_match]
-start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, read_match]
-start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, read_match]
-start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, read_match]
-start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, read_match]
+start_task >> opd_sensor >> opd_file_availability >> [dataproc_opd, read_match_ipm]
+start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, read_match_ipm]
+start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, read_match_ipm]
+start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, read_match_ipm]
+start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, read_match_cca]
+start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, read_match_pdc]
 
-dataproc_opd >> read_opd_gold >> execute_opd_gold >> read_match 
-dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> read_match 
-dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> read_match
-dataproc_incident >> read_incident_gold >> execute_incident_gold >> read_match
-dataproc_cca >> read_match
-dataproc_pdc >> read_match
+dataproc_opd >> read_opd_gold >> execute_opd_gold >> read_match_ipm 
+dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> read_match_ipm 
+dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> read_match_ipm
+dataproc_incident >> read_incident_gold >> execute_incident_gold >> read_match_ipm
+dataproc_cca >> read_cca_gold >> execute_cca_gold >> read_match_cca
+dataproc_pdc >> read_pdc_gold >> execute_pdc_gold >> read_match_pdc
 
-read_match >> execute_match >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
+read_match_ipm >> execute_match_ipm >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
+read_match_cca >> execute_match_cca >> move_files_cca >> end_task
+read_match_pdc >> execute_match_pdc >> move_files_pdc >> end_task
 
 
