@@ -35,40 +35,18 @@ TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 DATA_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 PREFIX = Variable.get(f'sql_folder_{env}')
 PYSPARK_FILE = Variable.get(f'conciliacion_pyspark_{env}')
-DATAPROC_TEMPLATE_IPM = Variable.get(f'conciliacion_dataproc_template_ipm_{env}')
-DATAPROC_TEMPLATE_OPD = Variable.get(f'conciliacion_dataproc_template_opd_{env}')
-DATAPROC_TEMPLATE_ANULATION = Variable.get(f'conciliacion_dataproc_template_anulation_{env}')
-DATAPROC_TEMPLATE_INCIDENT = Variable.get(f'conciliacion_dataproc_template_incident_{env}')
 DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
 INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
-IPM_PREFIX = Variable.get(f"ipm_prefix_{env}")
-OPD_PREFIX = Variable.get(f"opd_prefix_{env}")
-ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
-INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
-CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
-REGION_OPD = Variable.get(f"region_opd_{env}")
-REGION_IPM = Variable.get(f"region_ipm_{env}")
-REGION_ANULATION = Variable.get(f"region_anulation_{env}")
-REGION_INCIDENT = Variable.get(f"region_incident_{env}")
+CCA_PREFIX_1 = Variable.get(f"cca_prefix_1_{env}")
+CCA_PREFIX_2 = Variable.get(f"cca_prefix_2_{env}")
+CCA_PREFIX_3 = Variable.get(f"cca_prefix_3_{env}")
 REGION_CCA = Variable.get(f"region_cca_{env}")
-ipm_type_file = Variable.get(f"type_file_ipm_{env}")
-opd_type_file = Variable.get(f"type_file_opd_{env}")
-anulation_type_file = Variable.get(f"type_file_anulation_{env}")
-incident_type_file = Variable.get(f"type_file_incident_{env}")
 cca_type_file = Variable.get(f"type_file_cca_{env}")
-ipm_workers = Variable.get(f"ipm_workers_{env}")
-opd_workers = Variable.get(f"opd_workers_{env}")
-anulation_workers = Variable.get(f"anulation_workers_{env}")
-incident_workers = Variable.get(f"incident_workers_{env}")
 cca_workers = Variable.get(f"cca_workers_{env}")
-opd_query = Variable.get("opd_gold_query")
-ipm_query = Variable.get("ipm_gold_query")
-anulation_query = Variable.get("anulation_gold_query")
-incident_query = Variable.get("incident_gold_query")
 match_query = Variable.get("match_query")
 
 # Reads sql files from GCS bucket
@@ -153,7 +131,7 @@ with DAG(
             'NUMWORKERS':cca_workers,
             'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
             'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{CCA_PREFIX}*',
+            'INPUT':[f'{INPUT_FILES}{CCA_PREFIX_1}*', f'{INPUT_FILES}{CCA_PREFIX_2}*', f'{INPUT_FILES}{CCA_PREFIX_3}*'],
             'TYPE_FILE':cca_type_file,
             'OUTPUT':f'{OUTPUT_DATASET}.cca',
             'MODE_DEPLOY': DEPLOYMENT
