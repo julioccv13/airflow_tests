@@ -36,16 +36,16 @@ TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 DATA_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 PREFIX = Variable.get(f'sql_folder_{env}')
 PYSPARK_FILE = Variable.get(f'conciliacion_pyspark_{env}')
-DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
+DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
 INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
-CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
-REGION_CCA = Variable.get(f"region_cca_{env}")
-cca_type_file = Variable.get(f"type_file_cca_{env}")
-cca_workers = Variable.get(f"cca_workers_{env}")
+RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
+REGION_RECARGAS = Variable.get(f"region_recargas_{env}")
+recargas_type_file = Variable.get(f"type_file_recargas_{env}")
+recargas_workers = Variable.get(f"recargas_workers_{env}")
 match_query = Variable.get(f"match_query_{env}")
 
 
@@ -90,15 +90,15 @@ def file_availability(**kwargs):
 
 #DAG
 with DAG(
-    "tenpo_conciliaciones_cca",
+    "tenpo_conciliaciones_recargas",
     schedule_interval='0 8,16,20 * * *',
     default_args=default_args
 ) as dag: 
     
-    cca_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "cca_sensor",
+    recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "recargas_sensor",
         bucket=SOURCE_BUCKET,
-        prefix=CCA_PREFIX,
+        prefix=RECARGAS_PREFIX,
         poke_interval=30 ,
         mode='reschedule',
         timeout=60,
@@ -107,12 +107,12 @@ with DAG(
     
 # Action defined by file availability
     
-    cca_file_availability = BranchPythonOperator(
-        task_id='cca_file_availability',
+    recargas_file_availability = BranchPythonOperator(
+        task_id='recargas_file_availability',
         python_callable=file_availability,
         op_kwargs={
-            'sensor_task': 'cca_sensor',
-            'dataproc_task' : 'dataproc_cca',
+            'sensor_task': 'recargas_sensor',
+            'dataproc_task' : 'dataproc_recargas',
             'sql_task' : 'read_match'           
             },
         provide_context=True,   
@@ -120,19 +120,19 @@ with DAG(
         )
 
 # Instantiate a dataproc workflow template for each type of file to process
-    dataproc_cca = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_cca',
+    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_recargas',
         project_id=PROJECT_NAME,
-        region=REGION_CCA,
-        template_id=DATAPROC_TEMPLATE_CCA,     
+        region=REGION_RECARGAS,
+        template_id=DATAPROC_TEMPLATE_RECARGAS,     
         parameters={
-            'CLUSTER': f'{CLUSTER}-cca-{DEPLOYMENT}',
-            'NUMWORKERS':cca_workers,
+            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
+            'NUMWORKERS':recargas_workers,
             'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
             'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{CCA_PREFIX}*',
-            'TYPE_FILE':cca_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.cca',
+            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
+            'TYPE_FILE':recargas_type_file,
+            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
             'MODE_DEPLOY': DEPLOYMENT
         },
         )

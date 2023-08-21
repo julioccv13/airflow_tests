@@ -537,7 +537,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{IPM_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}ipm/MCI.AR.T112.M.E0073610.D',
+        destination_object=f'{BACKUP_FOLDER}ipm/{IPM_PREFIX}',
         move_object=True
         )
 
@@ -546,7 +546,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{OPD_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}opdV2/PLJ61110.FINT0003',
+        destination_object=f'{BACKUP_FOLDER}opdV2/{OPD_PREFIX}',
         move_object=True
         )
 
@@ -555,7 +555,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{ANULATION_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}anulation/PLJ00032.TRXS.ANULADAS',
+        destination_object=f'{BACKUP_FOLDER}anulation/{ANULATION_PREFIX}',
         move_object=True
         )
 
@@ -564,7 +564,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{INCIDENT_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}incident/PLJ62100-CONS-INC-PEND-TENPO',
+        destination_object=f'{BACKUP_FOLDER}incident/{INCIDENT_PREFIX}',
         move_object=True
         ) 
     
@@ -573,7 +573,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{CCA_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}cca/EXAP730',
+        destination_object=f'{BACKUP_FOLDER}cca/',
         move_object=True
         ) 
     
