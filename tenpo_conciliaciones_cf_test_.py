@@ -8,7 +8,9 @@ from airflow.providers.google.cloud.sensors.gcs import GCSObjectsWithPrefixExist
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.google.common.utils import id_token_credentials as id_token_credential_utils
+import google.auth.transport.requests
+from google.auth.transport.requests import AuthorizedSession
 from airflow.utils.dates import days_ago
 from google.cloud import bigquery
 import datetime
@@ -47,6 +49,7 @@ recargas_type_file = Variable.get(f"type_file_recargas_{env}")
 recargas_workers = Variable.get(f"recargas_workers_{env}")
 match_query = Variable.get(f"match_query_{env}")
 FUNCTION_NAME = 'function-cp-bucket'
+CF_BODY = Variable.get('cf_body')
 
 
 # Reads sql files from GCS bucket
@@ -82,83 +85,41 @@ def file_availability(**kwargs):
     try:
         file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['sensor_task'])
         if file_found:
-            return kwargs['dataproc_task']
+            return kwargs['cf_task']
         return kwargs['sql_task']
     except Exception as e:
         print(f"An error occurred: {e}")
         return kwargs['sql_task']      
     
+# Invoke cloud function
+def invoke_cloud_function():
+  url = "https://us-central1-tenpo-datalake-sandbox.cloudfunctions.net/function-cp-bucket" #the url is also the target audience. 
+  request = google.auth.transport.requests.Request()  #this is a request for obtaining the the credentials
+  id_token_credentials = id_token_credential_utils.get_default_id_token_credentials(url, request=request) # If your cloud function url has query parameters, remove them before passing to the audience 
+  headers = {"Content-Type": "application/json"}
+  body = {
+        "project_source": "tenpo-datalake-sandbox",
+        "project_target": "tenpo-datalake-sandbox",
+        "bucket_source": "mark-vii-conciliacion",
+        "bucket_target": "mark-vii-conciliacion",
+        "path_source": "test/function/source/",
+        "path_target": "test/function/target/",
+        "input_path_files": "test/function/target/"
+  }
+  resp = AuthorizedSession(id_token_credentials).post(url=url, json=body, headers=headers) # the authorized session object is used to access the Cloud Function
+  print(resp.status_code) # should return 200
+  print(resp.content) # the body of the HTTP response
+    
 
 #DAG
 with DAG(
-    "tenpo_conciliaciones_recargas",
+    "tenpo_conciliaciones_cf_test",
     schedule_interval='0 8,16,20 * * *',
     default_args=default_args
 ) as dag: 
     
-    recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "recargas_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=RECARGAS_PREFIX,
-        poke_interval=30 ,
-        mode='reschedule',
-        timeout=60,
-        soft_fail=True,
-        )
-    
-# Action defined by file availability
-    
-    recargas_file_availability = BranchPythonOperator(
-        task_id='recargas_file_availability',
-        python_callable=file_availability,
-        op_kwargs={
-            'sensor_task': 'recargas_sensor',
-            'dataproc_task' : 'dataproc_recargas',
-            'sql_task' : 'read_match'           
-            },
-        provide_context=True,   
-        trigger_rule='all_done'
-        )
-    
-
-# Instantiate a dataproc workflow template for each type of file to process
-    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_recargas',
-        project_id=PROJECT_NAME,
-        region=REGION_RECARGAS,
-        template_id=DATAPROC_TEMPLATE_RECARGAS,     
-        parameters={
-            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
-            'NUMWORKERS':recargas_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
-            'TYPE_FILE':recargas_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        )
-
-# Read the sql file with the Match query for conciliation from a GCS bucket 
-    read_match = PythonOperator(
-        task_id='read_match',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        trigger_rule='none_failed',
-        op_kwargs={
-        "query": match_query
-        }
-        )
-
-# Execute the sql file with the Match query for conciliation     
-    execute_match = PythonOperator(
-        task_id='execute_match',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match') }}"
-        }
-        )
+# Cloud function to copy files to local
+    invoke_cf = PythonOperator(task_id="invoke_cf", python_callable=invoke_cloud_function)
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
@@ -168,10 +129,6 @@ with DAG(
 # Task dependencies
 
 
-start_task >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, read_match]
-
-dataproc_recargas >> read_match
-
-read_match >> execute_match >> end_task
+start_task >> invoke_cf >> end_task
 
 

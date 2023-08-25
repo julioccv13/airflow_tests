@@ -41,6 +41,7 @@ DATAPROC_TEMPLATE_ANULATION = Variable.get(f'conciliacion_dataproc_template_anul
 DATAPROC_TEMPLATE_INCIDENT = Variable.get(f'conciliacion_dataproc_template_incident_{env}')
 DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
 DATAPROC_TEMPLATE_PDC = Variable.get(f'conciliacion_dataproc_template_pdc_{env}')
+DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
 INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
@@ -52,33 +53,39 @@ ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
 INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
 CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
 PDC_PREFIX = Variable.get(f"pdc_prefix_{env}")
+RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
 REGION_OPD = Variable.get(f"region_opd_{env}")
 REGION_IPM = Variable.get(f"region_ipm_{env}")
 REGION_ANULATION = Variable.get(f"region_anulation_{env}")
 REGION_INCIDENT = Variable.get(f"region_incident_{env}")
 REGION_CCA = Variable.get(f"region_cca_{env}")
 REGION_PDC = Variable.get(f"region_pdc_{env}")
+REGION_RECARGAS = Variable.get(f"region_recargas_{env}")
 ipm_type_file = Variable.get(f"type_file_ipm_{env}")
 opd_type_file = Variable.get(f"type_file_opd_{env}")
 anulation_type_file = Variable.get(f"type_file_anulation_{env}")
 incident_type_file = Variable.get(f"type_file_incident_{env}")
 cca_type_file = Variable.get(f"type_file_cca_{env}")
 pdc_type_file = Variable.get(f"type_file_pdc_{env}")
+recargas_type_file = Variable.get(f"type_file_recargas_{env}")
 ipm_workers = Variable.get(f"ipm_workers_{env}")
 opd_workers = Variable.get(f"opd_workers_{env}")
 anulation_workers = Variable.get(f"anulation_workers_{env}")
 incident_workers = Variable.get(f"incident_workers_{env}")
 cca_workers = Variable.get(f"cca_workers_{env}")
 pdc_workers = Variable.get(f"pdc_workers_{env}")
+recargas_workers = Variable.get(f"recargas_workers_{env}")
 opd_query = Variable.get(f"opd_gold_query_{env}")
 ipm_query = Variable.get(f"ipm_gold_query_{env}")
 anulation_query = Variable.get(f"anulation_gold_query_{env}")
 incident_query = Variable.get(f"incident_gold_query_{env}")
 cca_query = Variable.get(f"cca_gold_query_{env}")
 pdc_query = Variable.get(f"pdc_gold_query_{env}")
+recargas_query = Variable.get(f"recargas_gold_query_{env}")
 match_query = Variable.get(f"match_query_{env}")
 match_query_cca = Variable.get(f"cca_match_query_{env}")
 match_query_pdc = Variable.get(f"pdc_match_query_{env}")
+match_query_recargas = Variable.get(f"recargas_match_query_{env}")
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
@@ -114,10 +121,47 @@ def file_availability(**kwargs):
         file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['sensor_task'])
         if file_found:
             return kwargs['dataproc_task']
-        return kwargs['sql_task']
+        return kwargs['check_tables']
     except Exception as e:
         print(f"An error occurred: {e}")
-        return kwargs['sql_task']      
+        return kwargs['check_tables'] 
+    
+# Check status of gold tables processing
+def check_gold_tables(**kwargs):
+    try:
+        ti = kwargs['ti']        
+        ipm_status = ti.xcom_pull(task_ids='execute_ipm_gold', key='status')
+        opd_status = ti.xcom_pull(task_ids='execute_opd_gold', key='status')
+        anulation_status = ti.xcom_pull(task_ids='execute_anulation_gold', key='status')
+        incident_status = ti.xcom_pull(task_ids='execute_incident_gold', key='status')
+        cca_status = ti.xcom_pull(task_ids='execute_cca_gold', key='status')
+        pdc_status = ti.xcom_pull(task_ids='execute_pdc_gold', key='status')
+        recargas_status = ti.xcom_pull(task_ids='execute_cargas_gold', key='status')
+
+        if all(status == "success" for status in [ipm_status
+                                                  , opd_status
+                                                  , anulation_status
+                                                  , incident_status
+                                                  , cca_status
+                                                  , pdc_status
+                                                  , recargas_status]):
+            print("All inputs processed")
+
+        skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
+                                                         , ('execute_ipm_gold', ipm_status)
+                                                         , ('execute_anulation_gold', anulation_status)
+                                                         , ('execute_incident_gold', incident_status)
+                                                         , ('execute_cca_gold', cca_status)
+                                                         , ('execute_pdc_gold', pdc_status)
+                                                         , ('execute_recargas_gold', recargas_status)
+                                                    ] if status == "skipped"]
+        if skipped_tasks:
+            print(f"Tasks {skipped_tasks} skipped")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+    print("Checking gold tables")
 
 #DAG
 with DAG(
@@ -187,6 +231,16 @@ with DAG(
         soft_fail=True,
         )
     
+    recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "recargas_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=RECARGAS_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail=True,
+        )
+    
 # Action defined by file availability
     opd_file_availability = BranchPythonOperator(
         task_id='opd_file_availability',
@@ -194,7 +248,7 @@ with DAG(
         op_kwargs={
             'sensor_task': 'opd_sensor',
             'dataproc_task' : 'dataproc_opd',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'           
             },
         provide_context=True,
         trigger_rule='all_done'
@@ -206,7 +260,7 @@ with DAG(
         op_kwargs={
             'sensor_task': 'ipm_sensor',
             'dataproc_task' : 'dataproc_ipm',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'         
             },
         provide_context=True, 
         trigger_rule='all_done'  
@@ -218,7 +272,7 @@ with DAG(
         op_kwargs={
             'sensor_task': 'anulation_sensor',
             'dataproc_task' : 'dataproc_anulation',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'          
             },
         provide_context=True,   
         trigger_rule='all_done'
@@ -230,7 +284,7 @@ with DAG(
         op_kwargs={
             'sensor_task': 'incident_sensor',
             'dataproc_task' : 'dataproc_incident',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'         
             },
         provide_context=True,   
         trigger_rule='all_done'
@@ -242,7 +296,7 @@ with DAG(
         op_kwargs={
             'sensor_task': 'cca_sensor',
             'dataproc_task' : 'dataproc_cca',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'          
             },
         provide_context=True,   
         trigger_rule='all_done'
@@ -254,7 +308,19 @@ with DAG(
         op_kwargs={
             'sensor_task': 'pdc_sensor',
             'dataproc_task' : 'dataproc_pdc',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+    
+    recargas_file_availability = BranchPythonOperator(
+        task_id='recargas_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'recargas_sensor',
+            'dataproc_task' : 'dataproc_recargas',
+            'check_tables' : 'check_gold_tables_updates'         
             },
         provide_context=True,   
         trigger_rule='all_done'
@@ -362,6 +428,23 @@ with DAG(
             'MODE_DEPLOY': DEPLOYMENT
         },
         ) 
+    
+    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_recargas',
+        project_id=PROJECT_NAME,
+        region=REGION_RECARGAS,
+        template_id=DATAPROC_TEMPLATE_RECARGAS,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
+            'NUMWORKERS':recargas_workers,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
+            'TYPE_FILE':recargas_type_file,
+            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
 
 # Read a sql file for each type of file pass the tables from staging to gold    
     read_ipm_gold = PythonOperator(
@@ -415,6 +498,15 @@ with DAG(
         python_callable=read_gcs_sql,
         op_kwargs={
         "query": pdc_query
+        }
+        )  
+    
+    read_recargas_gold = PythonOperator(
+        task_id='read_recargas_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": recargas_query
         }
         )  
     
@@ -472,12 +564,29 @@ with DAG(
         "sql": "{{ task_instance.xcom_pull(task_ids='read_pdc_gold') }}"
         }
         )
+    
+    execute_recargas_gold = PythonOperator(
+        task_id='execute_recargas_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_recargas_gold') }}"
+        }
+        )
+    
+# Check if gold tables were updated
+    check_gold_tables_updates = PythonOperator(
+        task_id = 'check_gold_tables_updates',
+        python_callable=check_gold_tables,
+        provide_context = True,
+        trigger_rule='none_failed'
+    )
+    
 # Read the sql file with the Match query for conciliation from a GCS bucket 
     read_match_ipm = PythonOperator(
         task_id='read_match_ipm',
         provide_context=True,
         python_callable=read_gcs_sql,
-        trigger_rule='none_failed',
         op_kwargs={
         "query": match_query
         }
@@ -487,7 +596,6 @@ with DAG(
         task_id='read_match_cca',
         provide_context=True,
         python_callable=read_gcs_sql,
-        trigger_rule='none_failed',
         op_kwargs={
         "query": match_query_cca
         }
@@ -497,9 +605,17 @@ with DAG(
         task_id='read_match_pdc',
         provide_context=True,
         python_callable=read_gcs_sql,
-        trigger_rule='none_failed',
         op_kwargs={
         "query": match_query_pdc
+        }
+        )
+
+    read_match_recargas = PythonOperator(
+        task_id='read_match_recargas',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": match_query_recargas
         }
         )
 
@@ -528,6 +644,15 @@ with DAG(
         python_callable=query_bq,
         op_kwargs = {
         "sql": "{{ task_instance.xcom_pull(task_ids='read_match_pdc') }}"
+        }
+        )
+    
+    execute_match_recargas = PythonOperator(
+        task_id='execute_match_recargas',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_recargas') }}"
         }
         )
 
@@ -573,7 +698,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{CCA_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}cca/',
+        destination_object=f'{BACKUP_FOLDER}cca',
         move_object=True
         ) 
     
@@ -582,34 +707,49 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{PDC_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}pdc/',
+        destination_object=f'{BACKUP_FOLDER}pdc',
+        move_object=True
+        ) 
+    
+    move_files_recargas = GCSToGCSOperator(
+        task_id='move_files_recargas',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{RECARGAS_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}recargas',
         move_object=True
         ) 
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
 
-    end_task = DummyOperator( task_id = 'end')
+    end_task = DummyOperator( task_id = 'end', trigger_rule='all_done'  )
+
+
 
 # Task dependencies
 
+start_task >> opd_sensor >> opd_file_availability >> [dataproc_opd, check_gold_tables_updates]
+start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, check_gold_tables_updates]
+start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, check_gold_tables_updates]
+start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, check_gold_tables_updates]
+start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, check_gold_tables_updates]
+start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, check_gold_tables_updates]
+start_task >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
 
-start_task >> opd_sensor >> opd_file_availability >> [dataproc_opd, read_match_ipm]
-start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, read_match_ipm]
-start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, read_match_ipm]
-start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, read_match_ipm]
-start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, read_match_cca]
-start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, read_match_pdc]
+dataproc_opd >> read_opd_gold >> execute_opd_gold >> check_gold_tables_updates 
+dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> check_gold_tables_updates 
+dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> check_gold_tables_updates
+dataproc_incident >> read_incident_gold >> execute_incident_gold >> check_gold_tables_updates
+dataproc_cca >> read_cca_gold >> execute_cca_gold >> check_gold_tables_updates
+dataproc_pdc >> read_pdc_gold >> execute_pdc_gold >> check_gold_tables_updates
+dataproc_recargas >> read_recargas_gold >> execute_recargas_gold >> check_gold_tables_updates
 
-dataproc_opd >> read_opd_gold >> execute_opd_gold >> read_match_ipm 
-dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> read_match_ipm 
-dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> read_match_ipm
-dataproc_incident >> read_incident_gold >> execute_incident_gold >> read_match_ipm
-dataproc_cca >> read_cca_gold >> execute_cca_gold >> read_match_cca
-dataproc_pdc >> read_pdc_gold >> execute_pdc_gold >> read_match_pdc
+check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas]
 
 read_match_ipm >> execute_match_ipm >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
 read_match_cca >> execute_match_cca >> move_files_cca >> end_task
 read_match_pdc >> execute_match_pdc >> move_files_pdc >> end_task
+read_match_recargas >> execute_match_recargas >> move_files_recargas >> end_task
 
 
