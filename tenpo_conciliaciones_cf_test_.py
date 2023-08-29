@@ -93,23 +93,37 @@ def file_availability(**kwargs):
     
 # Invoke cloud function
 def invoke_cloud_function():
-  url = "https://us-central1-tenpo-datalake-sandbox.cloudfunctions.net/function-cp-bucket" #the url is also the target audience. 
-  request = google.auth.transport.requests.Request()  #this is a request for obtaining the the credentials
-  id_token_credentials = id_token_credential_utils.get_default_id_token_credentials(url, request=request) # If your cloud function url has query parameters, remove them before passing to the audience 
-  headers = {"Content-Type": "application/json"}
-  body = {
-        "project_source": "tenpo-datalake-sandbox",
-        "project_target": "tenpo-datalake-sandbox",
-        "bucket_source": "mark-vii-conciliacion",
-        "bucket_target": "mark-vii-conciliacion",
-        "path_source": "test/function/source/",
-        "path_target": "test/function/target/",
-        "input_path_files": "test/function/target/"
-  }
-  resp = AuthorizedSession(id_token_credentials).post(url=url, json=body, headers=headers) # the authorized session object is used to access the Cloud Function
-  print(resp.status_code) # should return 200
-  print(resp.content) # the body of the HTTP response
-    
+    try:
+        url = "https://us-central1-tenpo-datalake-sandbox.cloudfunctions.net/function-cp-bucket" #the url is also the target audience. 
+        request = google.auth.transport.requests.Request()  #this is a request for obtaining the the credentials
+        id_token_credentials = id_token_credential_utils.get_default_id_token_credentials(url, request=request) # If your cloud function url has query parameters, remove them before passing to the audience 
+        headers = {"Content-Type": "application/json"}
+        body = {
+                "project_source": "tenpo-datalake-sandbox",
+                "project_target": "tenpo-datalake-sandbox",
+                "bucket_source": "mark-vii-conciliacion",
+                "bucket_target": "mark-vii-conciliacion",
+                "path_source": "data/recargas_app/",
+                "path_target": "test/function/cca/",
+                "input_path_files": "data/new_files/recargas_app/"
+        }
+        resp = AuthorizedSession(id_token_credentials).post(url=url, json=body, headers=headers) # the authorized session object is used to access the Cloud Function
+        print(resp.status_code) # should return 200
+        print(resp.content) # the body of the HTTP response
+        return True
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False  
+
+def file_availability(**kwargs):
+    try:
+        file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['cf_task'])
+        if file_found:
+            return kwargs['test']
+        return kwargs['end']
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return kwargs['end'] 
 
 #DAG
 with DAG(
@@ -121,14 +135,30 @@ with DAG(
 # Cloud function to copy files to local
     invoke_cf = PythonOperator(task_id="invoke_cf", python_callable=invoke_cloud_function)
 
+    file_availability = BranchPythonOperator(
+        task_id='file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'cf_task': 'incident_sensor',
+            'test' : 'test_task',
+            'end' : 'end_task'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
 
-    end_task = DummyOperator( task_id = 'end')
+    test_task = DummyOperator( task_id = 'test_task')
+
+    end_task = DummyOperator( task_id = 'end_task')
 
 # Task dependencies
 
 
-start_task >> invoke_cf >> end_task
+
+start_task >> invoke_cf >> file_availability >> [test_task, end_task]
+test_task >> end_task
 
 

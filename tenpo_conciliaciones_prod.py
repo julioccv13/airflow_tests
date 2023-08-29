@@ -26,72 +26,86 @@ default_args = {
     'catchup' : False
 }
 
-# DAG Variables used
+# DAG general parameters
 env = Variable.get('env')
-DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PROJECT_NAME = Variable.get(f'datalake_{env}')
 SOURCE_BUCKET = Variable.get(f'conciliacion_ops_bucket_{env}')
 TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 DATA_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
-PREFIX = Variable.get(f'sql_folder_{env}')
+DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PYSPARK_FILE = Variable.get(f'conciliacion_pyspark_{env}')
-DATAPROC_TEMPLATE_IPM = Variable.get(f'conciliacion_dataproc_template_ipm_{env}')
-DATAPROC_TEMPLATE_OPD = Variable.get(f'conciliacion_dataproc_template_opd_{env}')
-DATAPROC_TEMPLATE_ANULATION = Variable.get(f'conciliacion_dataproc_template_anulation_{env}')
-DATAPROC_TEMPLATE_INCIDENT = Variable.get(f'conciliacion_dataproc_template_incident_{env}')
-DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
-DATAPROC_TEMPLATE_PDC = Variable.get(f'conciliacion_dataproc_template_pdc_{env}')
-DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
 INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
+SQL_FOLDER = Variable.get(f'sql_folder_{env}')
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
-IPM_PREFIX = Variable.get(f"ipm_prefix_{env}")
-OPD_PREFIX = Variable.get(f"opd_prefix_{env}")
-ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
-INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
-CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
-PDC_PREFIX = Variable.get(f"pdc_prefix_{env}")
-RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
+
+# OPD Parameters
 REGION_OPD = Variable.get(f"region_opd_{env}")
+DATAPROC_TEMPLATE_OPD = Variable.get(f'conciliacion_dataproc_template_opd_{env}')
+OPD_PREFIX = Variable.get(f"opd_prefix_{env}")
+OPD_WORKERS = Variable.get(f"opd_workers_{env}")
+OPD_TYPE_FILE = Variable.get(f"type_file_opd_{env}")
+OPD_QUERY = Variable.get(f"opd_gold_query_{env}")
+
+# IPM Parameters
 REGION_IPM = Variable.get(f"region_ipm_{env}")
+DATAPROC_TEMPLATE_IPM = Variable.get(f'conciliacion_dataproc_template_ipm_{env}')
+IPM_PREFIX = Variable.get(f"ipm_prefix_{env}")
+IPM_WORKERS = Variable.get(f"ipm_workers_{env}")
+IPM_TYPE_FILE = Variable.get(f"type_file_ipm_{env}")
+IPM_QUERY = Variable.get(f"ipm_gold_query_{env}")
+MATCH_QUERY_IPM = Variable.get(f"match_query_{env}")
+
+# Anulation Parameters
 REGION_ANULATION = Variable.get(f"region_anulation_{env}")
+DATAPROC_TEMPLATE_ANULATION = Variable.get(f'conciliacion_dataproc_template_anulation_{env}')
+ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
+ANULATION_WORKERS = Variable.get(f"anulation_workers_{env}")
+ANULATION_TYPE_FILE = Variable.get(f"type_file_anulation_{env}")
+ANULATION_QUERY = Variable.get(f"anulation_gold_query_{env}")
+
+# Incident parameters
 REGION_INCIDENT = Variable.get(f"region_incident_{env}")
+DATAPROC_TEMPLATE_INCIDENT = Variable.get(f'conciliacion_dataproc_template_incident_{env}')
+INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
+INCIDENT_WORKERS = Variable.get(f"incident_workers_{env}")
+INCIDENT_TYPE_FILE = Variable.get(f"type_file_incident_{env}")
+INCIDENT_QUERY = Variable.get(f"incident_gold_query_{env}")
+
+# CCA Parameters
 REGION_CCA = Variable.get(f"region_cca_{env}")
+DATAPROC_TEMPLATE_CCA = Variable.get(f'conciliacion_dataproc_template_cca_{env}')
+CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
+CCA_WORKERS = Variable.get(f"cca_workers_{env}")
+CCA_TYPE_FILE = Variable.get(f"type_file_cca_{env}")
+CCA_QUERY = Variable.get(f"cca_gold_query_{env}")
+MATCH_QUERY_CCA = Variable.get(f"cca_match_query_{env}")
+
+# PDC Parameters
 REGION_PDC = Variable.get(f"region_pdc_{env}")
+DATAPROC_TEMPLATE_PDC = Variable.get(f'conciliacion_dataproc_template_pdc_{env}')
+PDC_PREFIX = Variable.get(f"pdc_prefix_{env}")
+PDC_WORKERS = Variable.get(f"pdc_workers_{env}")
+PDC_TYPE_FILE = Variable.get(f"type_file_pdc_{env}")
+PDC_QUERY = Variable.get(f"pdc_gold_query_{env}")
+MATCH_QUERY_PDC = Variable.get(f"pdc_match_query_{env}")
+
+# Recargas App Parameters
 REGION_RECARGAS = Variable.get(f"region_recargas_{env}")
-ipm_type_file = Variable.get(f"type_file_ipm_{env}")
-opd_type_file = Variable.get(f"type_file_opd_{env}")
-anulation_type_file = Variable.get(f"type_file_anulation_{env}")
-incident_type_file = Variable.get(f"type_file_incident_{env}")
-cca_type_file = Variable.get(f"type_file_cca_{env}")
-pdc_type_file = Variable.get(f"type_file_pdc_{env}")
-recargas_type_file = Variable.get(f"type_file_recargas_{env}")
-ipm_workers = Variable.get(f"ipm_workers_{env}")
-opd_workers = Variable.get(f"opd_workers_{env}")
-anulation_workers = Variable.get(f"anulation_workers_{env}")
-incident_workers = Variable.get(f"incident_workers_{env}")
-cca_workers = Variable.get(f"cca_workers_{env}")
-pdc_workers = Variable.get(f"pdc_workers_{env}")
-recargas_workers = Variable.get(f"recargas_workers_{env}")
-opd_query = Variable.get(f"opd_gold_query_{env}")
-ipm_query = Variable.get(f"ipm_gold_query_{env}")
-anulation_query = Variable.get(f"anulation_gold_query_{env}")
-incident_query = Variable.get(f"incident_gold_query_{env}")
-cca_query = Variable.get(f"cca_gold_query_{env}")
-pdc_query = Variable.get(f"pdc_gold_query_{env}")
-recargas_query = Variable.get(f"recargas_gold_query_{env}")
-match_query = Variable.get(f"match_query_{env}")
-match_query_cca = Variable.get(f"cca_match_query_{env}")
-match_query_pdc = Variable.get(f"pdc_match_query_{env}")
-match_query_recargas = Variable.get(f"recargas_match_query_{env}")
+DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
+RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
+RECARGAS_WORKERS = Variable.get(f"recargas_workers_{env}")
+RECARGAS_TYPE_FILE = Variable.get(f"type_file_recargas_{env}")
+RECARGAS_QUERY = Variable.get(f"recargas_gold_query_{env}")
+MATCH_QUERY_RECARGAS = Variable.get(f"recargas_match_query_{env}")
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
     try:
         hook = GCSHook() 
-        object_name = f'{PREFIX}/{query}'
+        object_name = f'{SQL_FOLDER}/{query}'
         resp_byte = hook.download_as_byte_array(
             bucket_name=DATA_BUCKET,
             object_name=object_name,
@@ -170,7 +184,8 @@ with DAG(
     default_args=default_args
 ) as dag: 
 
-# GCS sensor for each file type    
+# OPD Input conciliation process
+
     opd_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "opd_sensor",
         bucket=SOURCE_BUCKET,
@@ -180,68 +195,7 @@ with DAG(
         timeout=60*30,
         soft_fail = True
         )
-    
-    ipm_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "ipm_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=IPM_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail = True
-        )
-    
-    anulation_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "anulation_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=ANULATION_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail = True
-        )
-    
-    incident_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "incident_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=INCIDENT_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail = True
-        )
-    
-    cca_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "cca_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=CCA_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
-        )
-    
-    pdc_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "pdc_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=PDC_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
-        )
-    
-    recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
-        task_id= "recargas_sensor",
-        bucket=SOURCE_BUCKET,
-        prefix=RECARGAS_PREFIX,
-        poke_interval=60*10 ,
-        mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
-        )
-    
-# Action defined by file availability
+
     opd_file_availability = BranchPythonOperator(
         task_id='opd_file_availability',
         python_callable=file_availability,
@@ -253,7 +207,63 @@ with DAG(
         provide_context=True,
         trigger_rule='all_done'
         )
+    
+    dataproc_opd = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_opd',
+        project_id=PROJECT_NAME,
+        region=REGION_OPD,
+        template_id=DATAPROC_TEMPLATE_OPD,    
+        parameters={
+            'CLUSTER': f'{CLUSTER}-opd-{DEPLOYMENT}',
+            'NUMWORKERS':OPD_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{OPD_PREFIX}*',
+            'TYPE_FILE':OPD_TYPE_FILE,
+            'OUTPUT': OUTPUT_DATASET,
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+    
+    read_opd_gold = PythonOperator(
+        task_id='read_opd_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": OPD_QUERY
+        }
+        )   
+    
+    execute_opd_gold = PythonOperator(
+        task_id='execute_opd_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_opd_gold') }}"
+        }
+        )
+    
+    move_files_opd = GCSToGCSOperator(
+        task_id='move_files_opd',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{OPD_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}opdV2/{OPD_PREFIX}',
+        move_object=True
+        )
 
+# IPM Input conciliation process 
+    
+    ipm_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "ipm_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=IPM_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail = True
+        )
+    
     ipm_file_availability = BranchPythonOperator(
         task_id='ipm_file_availability',
         python_callable=file_availability,
@@ -265,7 +275,81 @@ with DAG(
         provide_context=True, 
         trigger_rule='all_done'  
         )
+    
+    dataproc_ipm = DataprocInstantiateWorkflowTemplateOperator(
+        task_id="dataproc_ipm",
+        project_id=PROJECT_NAME,
+        region=REGION_IPM,
+        template_id=DATAPROC_TEMPLATE_IPM,
+        parameters={
+            'CLUSTER': f'{CLUSTER}-ipm-{DEPLOYMENT}',
+            'NUMWORKERS': IPM_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{IPM_PREFIX}*',
+            'TYPE_FILE':IPM_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.ipm',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+    
+    read_ipm_gold = PythonOperator(
+        task_id='read_ipm_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+                op_kwargs={
+        "query": IPM_QUERY
+        }
+        )
+    
+    execute_ipm_gold = PythonOperator(
+        task_id='execute_ipm_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_ipm_gold') }}"
+        }
+        )
+    
+    read_match_ipm = PythonOperator(
+        task_id='read_match_ipm',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_IPM
+        }
+        )
+    
+    execute_match_ipm = PythonOperator(
+        task_id='execute_match_ipm',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_ipm') }}"
+        }
+        )
+    
+    move_files_ipm = GCSToGCSOperator(
+        task_id='move_files_ipm',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{IPM_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}ipm/{IPM_PREFIX}',
+        move_object=True
+        )
 
+# Anulation input conciliation process
+
+    anulation_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "anulation_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=ANULATION_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail = True
+        )
+    
     anulation_file_availability = BranchPythonOperator(
         task_id='anulation_file_availability',
         python_callable=file_availability,
@@ -277,7 +361,63 @@ with DAG(
         provide_context=True,   
         trigger_rule='all_done'
         )
+    
+    dataproc_anulation = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_anulation',
+        project_id=PROJECT_NAME,
+        region=REGION_ANULATION,
+        template_id=DATAPROC_TEMPLATE_ANULATION, 
+        parameters={
+            'CLUSTER': f'{CLUSTER}-opd-anulation-{DEPLOYMENT}',
+            'NUMWORKERS':ANULATION_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT' : f'{INPUT_FILES}{ANULATION_PREFIX}*',
+            'TYPE_FILE':ANULATION_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.opd_anulation',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+    
+    read_anulation_gold = PythonOperator(
+        task_id='read_anulation_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": ANULATION_QUERY
+        }
+        ) 
+    
+    execute_anulation_gold = PythonOperator(
+        task_id='execute_anulation_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_anulation_gold') }}"
+        }
+        )
+    
+    move_files_anulation = GCSToGCSOperator(
+        task_id='move_files_anulation',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{ANULATION_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}anulation/{ANULATION_PREFIX}',
+        move_object=True
+        )
 
+# Incident input conciliation processs
+
+    incident_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "incident_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=INCIDENT_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail = True
+        )
+    
     incident_file_availability = BranchPythonOperator(
         task_id='incident_file_availability',
         python_callable=file_availability,
@@ -288,6 +428,63 @@ with DAG(
             },
         provide_context=True,   
         trigger_rule='all_done'
+        )
+
+    dataproc_incident = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_incident',
+        project_id=PROJECT_NAME,
+        region=REGION_INCIDENT,
+        template_id=DATAPROC_TEMPLATE_INCIDENT,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-opd-incident-{DEPLOYMENT}',
+            'NUMWORKERS':INCIDENT_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{INCIDENT_PREFIX}*',
+            'TYPE_FILE':INCIDENT_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.opd_incident',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        ) 
+    
+    read_incident_gold = PythonOperator(
+        task_id='read_incident_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": INCIDENT_QUERY
+        }
+        )  
+    
+    execute_incident_gold = PythonOperator(
+        task_id='execute_incident_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_incident_gold') }}"
+        }
+        )
+    
+    move_files_incident = GCSToGCSOperator(
+        task_id='move_files_incident',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{INCIDENT_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}incident/{INCIDENT_PREFIX}',
+        move_object=True
+        ) 
+    
+
+# CCA Input conciliation process
+
+    cca_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "cca_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=CCA_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail=True,
         )
     
     cca_file_availability = BranchPythonOperator(
@@ -301,100 +498,7 @@ with DAG(
         provide_context=True,   
         trigger_rule='all_done'
         )
-    
-    pdc_file_availability = BranchPythonOperator(
-        task_id='pdc_file_availability',
-        python_callable=file_availability,
-        op_kwargs={
-            'sensor_task': 'pdc_sensor',
-            'dataproc_task' : 'dataproc_pdc',
-            'check_tables' : 'check_gold_tables_updates'         
-            },
-        provide_context=True,   
-        trigger_rule='all_done'
-        )
-    
-    recargas_file_availability = BranchPythonOperator(
-        task_id='recargas_file_availability',
-        python_callable=file_availability,
-        op_kwargs={
-            'sensor_task': 'recargas_sensor',
-            'dataproc_task' : 'dataproc_recargas',
-            'check_tables' : 'check_gold_tables_updates'         
-            },
-        provide_context=True,   
-        trigger_rule='all_done'
-        )
-    
-# Instantiate a dataproc workflow template for each type of file to process 
-    dataproc_ipm = DataprocInstantiateWorkflowTemplateOperator(
-        task_id="dataproc_ipm",
-        project_id=PROJECT_NAME,
-        region=REGION_IPM,
-        template_id=DATAPROC_TEMPLATE_IPM,
-        parameters={
-            'CLUSTER': f'{CLUSTER}-ipm-{DEPLOYMENT}',
-            'NUMWORKERS': ipm_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{IPM_PREFIX}*',
-            'TYPE_FILE':ipm_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.ipm',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        )
 
-    dataproc_opd = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_opd',
-        project_id=PROJECT_NAME,
-        region=REGION_OPD,
-        template_id=DATAPROC_TEMPLATE_OPD,    
-        parameters={
-            'CLUSTER': f'{CLUSTER}-opd-{DEPLOYMENT}',
-            'NUMWORKERS':opd_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{OPD_PREFIX}*',
-            'TYPE_FILE':opd_type_file,
-            'OUTPUT': OUTPUT_DATASET,
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        )
-
-    dataproc_anulation = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_anulation',
-        project_id=PROJECT_NAME,
-        region=REGION_ANULATION,
-        template_id=DATAPROC_TEMPLATE_ANULATION, 
-        parameters={
-            'CLUSTER': f'{CLUSTER}-opd-anulation-{DEPLOYMENT}',
-            'NUMWORKERS':anulation_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT' : f'{INPUT_FILES}{ANULATION_PREFIX}*',
-            'TYPE_FILE':anulation_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.opd_anulation',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        )
-
-    dataproc_incident = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_incident',
-        project_id=PROJECT_NAME,
-        region=REGION_INCIDENT,
-        template_id=DATAPROC_TEMPLATE_INCIDENT,     
-        parameters={
-            'CLUSTER': f'{CLUSTER}-opd-incident-{DEPLOYMENT}',
-            'NUMWORKERS':incident_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{INCIDENT_PREFIX}*',
-            'TYPE_FILE':incident_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.opd_incident',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        ) 
-    
     dataproc_cca = DataprocInstantiateWorkflowTemplateOperator(
         task_id='dataproc_cca',
         project_id=PROJECT_NAME,
@@ -402,151 +506,25 @@ with DAG(
         template_id=DATAPROC_TEMPLATE_CCA,     
         parameters={
             'CLUSTER': f'{CLUSTER}-cca-{DEPLOYMENT}',
-            'NUMWORKERS':cca_workers,
+            'NUMWORKERS':CCA_WORKERS,
             'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
             'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
             'INPUT':f'{INPUT_FILES}{CCA_PREFIX}*',
-            'TYPE_FILE':cca_type_file,
+            'TYPE_FILE':CCA_TYPE_FILE,
             'OUTPUT':f'{OUTPUT_DATASET}.cca',
             'MODE_DEPLOY': DEPLOYMENT
         },
-        ) 
-    
-    dataproc_pdc = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_pdc',
-        project_id=PROJECT_NAME,
-        region=REGION_PDC,
-        template_id=DATAPROC_TEMPLATE_PDC,     
-        parameters={
-            'CLUSTER': f'{CLUSTER}-pdc-{DEPLOYMENT}',
-            'NUMWORKERS':pdc_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{PDC_PREFIX}*',
-            'TYPE_FILE':pdc_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.pdc',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        ) 
-    
-    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_recargas',
-        project_id=PROJECT_NAME,
-        region=REGION_RECARGAS,
-        template_id=DATAPROC_TEMPLATE_RECARGAS,     
-        parameters={
-            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
-            'NUMWORKERS':recargas_workers,
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
-            'TYPE_FILE':recargas_type_file,
-            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
         )
-
-# Read a sql file for each type of file pass the tables from staging to gold    
-    read_ipm_gold = PythonOperator(
-        task_id='read_ipm_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-                op_kwargs={
-        "query": ipm_query
-        }
-        )
-
-    read_opd_gold = PythonOperator(
-        task_id='read_opd_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": opd_query
-        }
-        )      
     
-    read_anulation_gold = PythonOperator(
-        task_id='read_anulation_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": anulation_query
-        }
-        )     
-    
-    read_incident_gold = PythonOperator(
-        task_id='read_incident_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": incident_query
-        }
-        )     
-
     read_cca_gold = PythonOperator(
         task_id='read_cca_gold',
         provide_context=True,
         python_callable=read_gcs_sql,
         op_kwargs={
-        "query": cca_query
+        "query": CCA_QUERY
         }
         )  
     
-    read_pdc_gold = PythonOperator(
-        task_id='read_pdc_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": pdc_query
-        }
-        )  
-    
-    read_recargas_gold = PythonOperator(
-        task_id='read_recargas_gold',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": recargas_query
-        }
-        )  
-    
-# Execute a sql file for each type of file pass the tables from staging to gold     
-    execute_ipm_gold = PythonOperator(
-        task_id='execute_ipm_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_ipm_gold') }}"
-        }
-        )
-
-    execute_opd_gold = PythonOperator(
-        task_id='execute_opd_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_opd_gold') }}"
-        }
-        )
-    
-    execute_incident_gold = PythonOperator(
-        task_id='execute_incident_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_incident_gold') }}"
-        }
-        )
-    
-    execute_anulation_gold = PythonOperator(
-        task_id='execute_anulation_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_anulation_gold') }}"
-        }
-        )
-
     execute_cca_gold = PythonOperator(
         task_id='execute_cca_gold',
         provide_context=True,
@@ -556,76 +534,12 @@ with DAG(
         }
         )
     
-    execute_pdc_gold = PythonOperator(
-        task_id='execute_pdc_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_pdc_gold') }}"
-        }
-        )
-    
-    execute_recargas_gold = PythonOperator(
-        task_id='execute_recargas_gold',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_recargas_gold') }}"
-        }
-        )
-    
-# Check if gold tables were updated
-    check_gold_tables_updates = PythonOperator(
-        task_id = 'check_gold_tables_updates',
-        python_callable=check_gold_tables,
-        provide_context = True,
-        trigger_rule='none_failed'
-    )
-    
-# Read the sql file with the Match query for conciliation from a GCS bucket 
-    read_match_ipm = PythonOperator(
-        task_id='read_match_ipm',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": match_query
-        }
-        )
-    
     read_match_cca = PythonOperator(
         task_id='read_match_cca',
         provide_context=True,
         python_callable=read_gcs_sql,
         op_kwargs={
-        "query": match_query_cca
-        }
-        )
-    
-    read_match_pdc = PythonOperator(
-        task_id='read_match_pdc',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": match_query_pdc
-        }
-        )
-
-    read_match_recargas = PythonOperator(
-        task_id='read_match_recargas',
-        provide_context=True,
-        python_callable=read_gcs_sql,
-        op_kwargs={
-        "query": match_query_recargas
-        }
-        )
-
-# Execute the sql file with the Match query for conciliation     
-    execute_match_ipm = PythonOperator(
-        task_id='execute_match_ipm',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_ipm') }}"
+        "query": MATCH_QUERY_CCA
         }
         )
     
@@ -638,61 +552,6 @@ with DAG(
         }
         )
     
-    execute_match_pdc = PythonOperator(
-        task_id='execute_match_pdc',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_pdc') }}"
-        }
-        )
-    
-    execute_match_recargas = PythonOperator(
-        task_id='execute_match_recargas',
-        provide_context=True,
-        python_callable=query_bq,
-        op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_recargas') }}"
-        }
-        )
-
-# Move the files of the day from the source bucket to a backup bucket to leave it empty for the next day process        
-    move_files_ipm = GCSToGCSOperator(
-        task_id='move_files_ipm',
-        source_bucket=SOURCE_BUCKET,
-        source_objects=[f'{IPM_PREFIX}*'],
-        destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}ipm/{IPM_PREFIX}',
-        move_object=True
-        )
-
-    move_files_opd = GCSToGCSOperator(
-        task_id='move_files_opd',
-        source_bucket=SOURCE_BUCKET,
-        source_objects=[f'{OPD_PREFIX}*'],
-        destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}opdV2/{OPD_PREFIX}',
-        move_object=True
-        )
-
-    move_files_anulation = GCSToGCSOperator(
-        task_id='move_files_anulation',
-        source_bucket=SOURCE_BUCKET,
-        source_objects=[f'{ANULATION_PREFIX}*'],
-        destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}anulation/{ANULATION_PREFIX}',
-        move_object=True
-        )
-
-    move_files_incident = GCSToGCSOperator(
-        task_id='move_files_incident',
-        source_bucket=SOURCE_BUCKET,
-        source_objects=[f'{INCIDENT_PREFIX}*'],
-        destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}incident/{INCIDENT_PREFIX}',
-        move_object=True
-        ) 
-    
     move_files_cca = GCSToGCSOperator(
         task_id='move_files_cca',
         source_bucket=SOURCE_BUCKET,
@@ -701,6 +560,83 @@ with DAG(
         destination_object=f'{BACKUP_FOLDER}cca',
         move_object=True
         ) 
+    
+# PDC Input conciliation process
+
+    pdc_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "pdc_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=PDC_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail=True,
+        )
+
+    pdc_file_availability = BranchPythonOperator(
+        task_id='pdc_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'pdc_sensor',
+            'dataproc_task' : 'dataproc_pdc',
+            'check_tables' : 'check_gold_tables_updates'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+    
+    dataproc_pdc = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_pdc',
+        project_id=PROJECT_NAME,
+        region=REGION_PDC,
+        template_id=DATAPROC_TEMPLATE_PDC,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-pdc-{DEPLOYMENT}',
+            'NUMWORKERS':PDC_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{PDC_PREFIX}*',
+            'TYPE_FILE':PDC_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.pdc',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        ) 
+
+    read_pdc_gold = PythonOperator(
+        task_id='read_pdc_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": PDC_QUERY
+        }
+        )  
+
+    execute_pdc_gold = PythonOperator(
+        task_id='execute_pdc_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_pdc_gold') }}"
+        }
+        )
+    
+    read_match_pdc = PythonOperator(
+        task_id='read_match_pdc',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_PDC
+        }
+        )
+    
+    execute_match_pdc = PythonOperator(
+        task_id='execute_match_pdc',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_pdc') }}"
+        }
+        )
     
     move_files_pdc = GCSToGCSOperator(
         task_id='move_files_pdc',
@@ -711,6 +647,83 @@ with DAG(
         move_object=True
         ) 
     
+# Recargas input conciliation process
+
+    recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "recargas_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=RECARGAS_PREFIX,
+        poke_interval=60*10 ,
+        mode='reschedule',
+        timeout=60*30,
+        soft_fail=True,
+        )
+
+    recargas_file_availability = BranchPythonOperator(
+        task_id='recargas_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'recargas_sensor',
+            'dataproc_task' : 'dataproc_recargas',
+            'check_tables' : 'check_gold_tables_updates'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+       
+    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_recargas',
+        project_id=PROJECT_NAME,
+        region=REGION_RECARGAS,
+        template_id=DATAPROC_TEMPLATE_RECARGAS,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
+            'NUMWORKERS':RECARGAS_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
+            'TYPE_FILE':RECARGAS_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+
+    read_recargas_gold = PythonOperator(
+        task_id='read_recargas_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": RECARGAS_QUERY
+        }
+        )  
+
+    execute_recargas_gold = PythonOperator(
+        task_id='execute_recargas_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_recargas_gold') }}"
+        }
+        )
+        
+    read_match_recargas = PythonOperator(
+        task_id='read_match_recargas',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_RECARGAS
+        }
+        )
+
+    execute_match_recargas = PythonOperator(
+        task_id='execute_match_recargas',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_recargas') }}"
+        }
+        )
+
     move_files_recargas = GCSToGCSOperator(
         task_id='move_files_recargas',
         source_bucket=SOURCE_BUCKET,
@@ -719,6 +732,14 @@ with DAG(
         destination_object=f'{BACKUP_FOLDER}recargas',
         move_object=True
         ) 
+
+# Check for gold tables updates
+    check_gold_tables_updates = PythonOperator(
+        task_id = 'check_gold_tables_updates',
+        python_callable=check_gold_tables,
+        provide_context = True,
+        trigger_rule='none_failed'
+    )
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
