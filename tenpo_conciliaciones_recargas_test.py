@@ -26,34 +26,36 @@ default_args = {
     'catchup' : False
 }
 
-# DAG Variables used
+# DAG general parameters
 env = Variable.get('env')
-DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PROJECT_NAME = Variable.get(f'datalake_{env}')
+SOURCE_PROJECT = Variable.get(f'conciliacion_source_project_{env}')
 SOURCE_BUCKET = Variable.get(f'conciliacion_ops_bucket_{env}')
 TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 DATA_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
-PREFIX = Variable.get(f'sql_folder_{env}')
+DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PYSPARK_FILE = Variable.get(f'conciliacion_pyspark_{env}')
-DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
-INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
+SQL_FOLDER = Variable.get(f'sql_folder_{env}')
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
-RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
+
+# Recargas App Parameters
 REGION_RECARGAS = Variable.get(f"region_recargas_{env}")
-recargas_type_file = Variable.get(f"type_file_recargas_{env}")
-recargas_workers = Variable.get(f"recargas_workers_{env}")
-match_query = Variable.get(f"match_query_{env}")
-FUNCTION_NAME = 'function-cp-bucket'
+DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
+RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
+RECARGAS_WORKERS = Variable.get(f"recargas_workers_{env}")
+RECARGAS_TYPE_FILE = Variable.get(f"type_file_recargas_{env}")
+RECARGAS_QUERY = Variable.get(f"recargas_gold_query_{env}")
+MATCH_QUERY_RECARGAS = Variable.get(f"recargas_match_query_{env}")
 
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
     try:
         hook = GCSHook() 
-        object_name = f'{PREFIX}/{query}'
+        object_name = f'{SQL_FOLDER}/{query}'
         resp_byte = hook.download_as_byte_array(
             bucket_name=DATA_BUCKET,
             object_name=object_name,
@@ -83,10 +85,47 @@ def file_availability(**kwargs):
         file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['sensor_task'])
         if file_found:
             return kwargs['dataproc_task']
-        return kwargs['sql_task']
+        return kwargs['check_tables']
     except Exception as e:
         print(f"An error occurred: {e}")
-        return kwargs['sql_task']      
+        return kwargs['check_tables'] 
+    
+# Check status of gold tables processing
+def check_gold_tables(**kwargs):
+    try:
+        ti = kwargs['ti']        
+        ipm_status = ti.xcom_pull(task_ids='execute_ipm_gold', key='status')
+        opd_status = ti.xcom_pull(task_ids='execute_opd_gold', key='status')
+        anulation_status = ti.xcom_pull(task_ids='execute_anulation_gold', key='status')
+        incident_status = ti.xcom_pull(task_ids='execute_incident_gold', key='status')
+        cca_status = ti.xcom_pull(task_ids='execute_cca_gold', key='status')
+        pdc_status = ti.xcom_pull(task_ids='execute_pdc_gold', key='status')
+        recargas_status = ti.xcom_pull(task_ids='execute_cargas_gold', key='status')
+
+        if all(status == "success" for status in [ipm_status
+                                                  , opd_status
+                                                  , anulation_status
+                                                  , incident_status
+                                                  , cca_status
+                                                  , pdc_status
+                                                  , recargas_status]):
+            print("All inputs processed")
+
+        skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
+                                                         , ('execute_ipm_gold', ipm_status)
+                                                         , ('execute_anulation_gold', anulation_status)
+                                                         , ('execute_incident_gold', incident_status)
+                                                         , ('execute_cca_gold', cca_status)
+                                                         , ('execute_pdc_gold', pdc_status)
+                                                         , ('execute_recargas_gold', recargas_status)
+                                                    ] if status == "skipped"]
+        if skipped_tasks:
+            print(f"Tasks {skipped_tasks} skipped")
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+    print("Checking gold tables")    
     
 
 #DAG
@@ -96,32 +135,30 @@ with DAG(
     default_args=default_args
 ) as dag: 
     
+# Recargas input conciliation process
+
     recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "recargas_sensor",
         bucket=SOURCE_BUCKET,
         prefix=RECARGAS_PREFIX,
-        poke_interval=30 ,
+        poke_interval=60*10 ,
         mode='reschedule',
-        timeout=60,
+        timeout=60*30,
         soft_fail=True,
         )
-    
-# Action defined by file availability
-    
+
     recargas_file_availability = BranchPythonOperator(
         task_id='recargas_file_availability',
         python_callable=file_availability,
         op_kwargs={
             'sensor_task': 'recargas_sensor',
             'dataproc_task' : 'dataproc_recargas',
-            'sql_task' : 'read_match'           
+            'check_tables' : 'check_gold_tables_updates'         
             },
         provide_context=True,   
         trigger_rule='all_done'
         )
-    
-
-# Instantiate a dataproc workflow template for each type of file to process
+       
     dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
         task_id='dataproc_recargas',
         project_id=PROJECT_NAME,
@@ -129,49 +166,82 @@ with DAG(
         template_id=DATAPROC_TEMPLATE_RECARGAS,     
         parameters={
             'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
-            'NUMWORKERS':recargas_workers,
+            'NUMWORKERS':RECARGAS_WORKERS,
             'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
             'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'{INPUT_FILES}{RECARGAS_PREFIX}*',
-            'TYPE_FILE':recargas_type_file,
+            'INPUT':f'{RECARGAS_PREFIX}*',
+            'TYPE_FILE':RECARGAS_TYPE_FILE,
             'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
             'MODE_DEPLOY': DEPLOYMENT
         },
         )
 
-# Read the sql file with the Match query for conciliation from a GCS bucket 
-    read_match = PythonOperator(
-        task_id='read_match',
+    read_recargas_gold = PythonOperator(
+        task_id='read_recargas_gold',
         provide_context=True,
         python_callable=read_gcs_sql,
-        trigger_rule='none_failed',
         op_kwargs={
-        "query": match_query
+        "query": RECARGAS_QUERY
         }
-        )
+        )  
 
-# Execute the sql file with the Match query for conciliation     
-    execute_match = PythonOperator(
-        task_id='execute_match',
+    execute_recargas_gold = PythonOperator(
+        task_id='execute_recargas_gold',
         provide_context=True,
         python_callable=query_bq,
         op_kwargs = {
-        "sql": "{{ task_instance.xcom_pull(task_ids='read_match') }}"
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_recargas_gold') }}"
         }
         )
+        
+    read_match_recargas = PythonOperator(
+        task_id='read_match_recargas',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_RECARGAS
+        }
+        )
+
+    execute_match_recargas = PythonOperator(
+        task_id='execute_match_recargas',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_recargas') }}"
+        }
+        )
+
+    move_files_recargas = GCSToGCSOperator(
+        task_id='move_files_recargas',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{RECARGAS_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}recargas/',
+        move_object=True
+        ) 
+
+# Check for gold tables updates
+    check_gold_tables_updates = PythonOperator(
+        task_id = 'check_gold_tables_updates',
+        python_callable=check_gold_tables,
+        provide_context = True,
+        trigger_rule='none_failed'
+    )
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
 
-    end_task = DummyOperator( task_id = 'end')
+    end_task = DummyOperator( task_id = 'end', trigger_rule='all_done'  )
 
 # Task dependencies
 
 
-start_task >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, read_match]
+start_task >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
 
-dataproc_recargas >> read_match
+dataproc_recargas >> read_recargas_gold >> execute_recargas_gold >> check_gold_tables_updates
 
-read_match >> execute_match >> end_task
+check_gold_tables_updates >> read_match_recargas
 
+read_match_recargas >> execute_match_recargas >> move_files_recargas >> end_task
 

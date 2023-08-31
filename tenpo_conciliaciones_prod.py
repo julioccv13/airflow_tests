@@ -56,7 +56,7 @@ IPM_PREFIX = Variable.get(f"ipm_prefix_{env}")
 IPM_WORKERS = Variable.get(f"ipm_workers_{env}")
 IPM_TYPE_FILE = Variable.get(f"type_file_ipm_{env}")
 IPM_QUERY = Variable.get(f"ipm_gold_query_{env}")
-MATCH_QUERY_IPM = Variable.get(f"match_query_{env}")
+MATCH_QUERY_IPM = Variable.get(f"ipm_match_query_{env}")
 
 # Anulation Parameters
 REGION_ANULATION = Variable.get(f"region_anulation_{env}")
@@ -160,22 +160,20 @@ def check_gold_tables(**kwargs):
                                                   , pdc_status
                                                   , recargas_status]):
             print("All inputs processed")
-
-        skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
-                                                         , ('execute_ipm_gold', ipm_status)
-                                                         , ('execute_anulation_gold', anulation_status)
-                                                         , ('execute_incident_gold', incident_status)
-                                                         , ('execute_cca_gold', cca_status)
-                                                         , ('execute_pdc_gold', pdc_status)
-                                                         , ('execute_recargas_gold', recargas_status)
-                                                    ] if status == "skipped"]
-        if skipped_tasks:
+        else:
+            skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
+                                                            , ('execute_ipm_gold', ipm_status)
+                                                            , ('execute_anulation_gold', anulation_status)
+                                                            , ('execute_incident_gold', incident_status)
+                                                            , ('execute_cca_gold', cca_status)
+                                                            , ('execute_pdc_gold', pdc_status)
+                                                            , ('execute_recargas_gold', recargas_status)
+                                                        ] if status == "skipped"]
             print(f"Tasks {skipped_tasks} skipped")
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-    print("Checking gold tables")
 
 #DAG
 with DAG(
@@ -557,7 +555,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{CCA_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}cca',
+        destination_object=f'{BACKUP_FOLDER}cca/',
         move_object=True
         ) 
     
@@ -643,7 +641,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{PDC_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}pdc',
+        destination_object=f'{BACKUP_FOLDER}pdc/',
         move_object=True
         ) 
     
@@ -729,7 +727,7 @@ with DAG(
         source_bucket=SOURCE_BUCKET,
         source_objects=[f'{RECARGAS_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}recargas',
+        destination_object=f'{BACKUP_FOLDER}recargas/',
         move_object=True
         ) 
 

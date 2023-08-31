@@ -28,102 +28,78 @@ default_args = {
     'catchup' : False
 }
 
-# DAG Variables used
+# DAG general parameters
 env = Variable.get('env')
-DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PROJECT_NAME = Variable.get(f'datalake_{env}')
+SOURCE_PROJECT = Variable.get(f'conciliacion_source_project_{env}')
 SOURCE_BUCKET = Variable.get(f'conciliacion_ops_bucket_{env}')
 TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
 DATA_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
-PREFIX = Variable.get(f'sql_folder_{env}')
+DEPLOYMENT = Variable.get(f"conciliacion_deployment_{env}")
 PYSPARK_FILE = Variable.get(f'conciliacion_pyspark_{env}')
-DATAPROC_TEMPLATE_RECARGAS = Variable.get(f'conciliacion_dataproc_template_recargas_{env}')
 CLUSTER = Variable.get(f"conciliacion_dataproc_cluster_{env}")
 DATAPROC_FILES = Variable.get(f"conciliacion_dataproc_files_{env}")
-INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
+SQL_FOLDER = Variable.get(f'sql_folder_{env}')
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
+
+# OPD Parameters
+OPD_PREFIX = Variable.get(f"opd_prefix_{env}")
+OPD_SOURCE = Variable.get(f"opd_source_{env}")
+OPD_PATH_FILES = Variable.get(f"opd_path_files_{env}")
+
+# IPM Parameters
+IPM_PREFIX = Variable.get(f"ipm_prefix_{env}")
+IPM_SOURCE = Variable.get(f"ipm_source_{env}")
+IPM_PATH_FILES = Variable.get(f"ipm_path_files_{env}")
+
+# Anulation Parameters
+ANULATION_PREFIX = Variable.get(f"anulation_prefix_{env}")
+ANULATION_SOURCE = Variable.get(f"anulation_source_{env}")
+ANULATION_PATH_FILES = Variable.get(f"anulation_path_files_{env}")
+
+# Incident parameters
+INCIDENT_PREFIX = Variable.get(f"incident_prefix_{env}")
+INCIDENT_SOURCE = Variable.get(f"incident_source_{env}")
+INCIDENT_PATH_FILES = Variable.get(f"incident_path_files_{env}")
+
+# CCA Parameters
+CCA_PREFIX = Variable.get(f"cca_prefix_{env}")
+CCA_SOURCE = Variable.get(f"cca_source_{env}")
+CCA_PATH_FILES = Variable.get(f"cca_path_files_{env}")
+
+# PDC Parameters
+PDC_PREFIX = Variable.get(f"pdc_prefix_{env}")
+PDC_SOURCE = Variable.get(f"pdc_source_{env}")
+PDC_PATH_FILES = Variable.get(f"pdc_path_files_{env}")
+
+# Recargas App Parameters
 RECARGAS_PREFIX = Variable.get(f"recargas_prefix_{env}")
-REGION_RECARGAS = Variable.get(f"region_recargas_{env}")
-recargas_type_file = Variable.get(f"type_file_recargas_{env}")
-recargas_workers = Variable.get(f"recargas_workers_{env}")
-match_query = Variable.get(f"match_query_{env}")
-FUNCTION_NAME = 'function-cp-bucket'
-CF_BODY = Variable.get('cf_body')
+RECARGAS_SOURCE = Variable.get(f"recargas_source_{env}")
+RECARGAS_PATH_FILES = Variable.get(f"recargas_path_files_{env}")
 
-
-# Reads sql files from GCS bucket
-def read_gcs_sql(query):
-    try:
-        hook = GCSHook() 
-        object_name = f'{PREFIX}/{query}'
-        resp_byte = hook.download_as_byte_array(
-            bucket_name=DATA_BUCKET,
-            object_name=object_name,
-        )
-        resp_string = resp_byte.decode("utf-8")
-        logging.info(resp_string)
-        return resp_string
-    except Exception as e:
-        logging.error(f"Error occurred while reading SQL file from GCS: {str(e)}")
-
-# Execute sql files read from GCS bucket
-def query_bq(sql):
-    try:
-        hook = BigQueryHook(gcp_conn_id=GoogleBaseHook.default_conn_name, delegate_to=None, use_legacy_sql=False)
-        client = bigquery.Client(project=hook._get_field(PROJECT_NAME))
-        consulta = client.query(sql) 
-        if consulta.errors:
-            raise Exception('Query with ERROR')
-        else:
-            print('Query executed successfully!')
-    except Exception as e:
-        logging.error(f"Error occurred while executing BigQuery query: {str(e)}")
-
-# Take action depending if there is a file or not
-def file_availability(**kwargs):
-    try:
-        file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['sensor_task'])
-        if file_found:
-            return kwargs['cf_task']
-        return kwargs['sql_task']
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return kwargs['sql_task']      
-    
 # Invoke cloud function
-def invoke_cloud_function():
+def invoke_cloud_function(**kwargs):
     try:
-        url = "https://us-central1-tenpo-datalake-sandbox.cloudfunctions.net/function-cp-bucket" #the url is also the target audience. 
+        url = "https://us-central1-tenpo-datalake-sandbox.cloudfunctions.net/function-copy-new-files" #the url is also the target audience. 
         request = google.auth.transport.requests.Request()  #this is a request for obtaining the the credentials
         id_token_credentials = id_token_credential_utils.get_default_id_token_credentials(url, request=request) # If your cloud function url has query parameters, remove them before passing to the audience 
         headers = {"Content-Type": "application/json"}
         body = {
-                "project_source": "tenpo-datalake-sandbox",
-                "project_target": "tenpo-datalake-sandbox",
-                "bucket_source": "mark-vii-conciliacion",
-                "bucket_target": "mark-vii-conciliacion",
-                "path_source": "data/recargas_app/",
-                "path_target": "test/function/cca/",
-                "input_path_files": "data/new_files/recargas_app/"
+                "project_source": kwargs['project_source'],
+                "project_target":kwargs['project_target'],
+                "bucket_source": kwargs['bucket_source'],
+                "bucket_target": kwargs['bucket_target'],
+                "path_source": kwargs['path_source'],
+                "backup_path": kwargs['backup_path'],
+                "input_path_files": kwargs['input_path_files']
         }
         resp = AuthorizedSession(id_token_credentials).post(url=url, json=body, headers=headers) # the authorized session object is used to access the Cloud Function
         print(resp.status_code) # should return 200
         print(resp.content) # the body of the HTTP response
-        return True
     except Exception as e:
         print(f"An error occurred: {e}")
         return False  
-
-def file_availability(**kwargs):
-    try:
-        file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['cf_task'])
-        if file_found:
-            return kwargs['test']
-        return kwargs['end']
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return kwargs['end'] 
 
 #DAG
 with DAG(
@@ -132,33 +108,127 @@ with DAG(
     default_args=default_args
 ) as dag: 
     
-# Cloud function to copy files to local
-    invoke_cf = PythonOperator(task_id="invoke_cf", python_callable=invoke_cloud_function)
+# OPD Process trigger
+    opd_cf = PythonOperator(
+        task_id="opd_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": OPD_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}cca/',
+                "input_path_files": OPD_PATH_FILES
+        }
+        )
 
-    file_availability = BranchPythonOperator(
-        task_id='file_availability',
-        python_callable=file_availability,
-        op_kwargs={
-            'cf_task': 'incident_sensor',
-            'test' : 'test_task',
-            'end' : 'end_task'         
-            },
-        provide_context=True,   
-        trigger_rule='all_done'
+# IPM Process trigger
+    ipm_cf = PythonOperator(
+        task_id="ipm_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": IPM_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}ipm/',
+                "input_path_files": IPM_PATH_FILES
+        }
+        )
+
+# Anulation process trigger
+    anulation_cf = PythonOperator(
+        task_id="anulation_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": ANULATION_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}anulation/',
+                "input_path_files": ANULATION_PATH_FILES
+        }
+        )
+
+# Incident process trigger
+    incident_cf = PythonOperator(
+        task_id="incident_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": INCIDENT_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}incident/',
+                "input_path_files": INCIDENT_PATH_FILES
+        }
+        )
+
+# CCA Process trigger
+    cca_cf = PythonOperator(
+        task_id="cca_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": CCA_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}cca/',
+                "input_path_files": CCA_PATH_FILES
+        }
+        )
+
+# PDC Process trigger
+    pdc_cf = PythonOperator(
+        task_id="pdc_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": PDC_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}pdc/',
+                "input_path_files": PDC_PATH_FILES
+        }
+        )
+
+# Recargas process trigger
+    recargas_cf = PythonOperator(
+        task_id="recargas_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": RECARGAS_SOURCE,
+                "backup_path": f'{BACKUP_FOLDER}recargas/',
+                "input_path_files": RECARGAS_PATH_FILES
+        }
         )
 
 # Dummy tasks        
     start_task = DummyOperator( task_id = 'start')
 
-    test_task = DummyOperator( task_id = 'test_task')
-
-    end_task = DummyOperator( task_id = 'end_task')
+    end_task = DummyOperator( task_id = 'end_task', trigger_rule = 'all_done')
 
 # Task dependencies
 
 
 
-start_task >> invoke_cf >> file_availability >> [test_task, end_task]
-test_task >> end_task
+start_task >> [opd_cf, ipm_cf, anulation_cf, incident_cf, cca_cf, pdc_cf, recargas_cf] >> end_task
 
 
