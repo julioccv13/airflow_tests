@@ -1,5 +1,6 @@
 from airflow.models import DAG
 from airflow.models import Variable
+from plugins.slack import get_task_success_slack_alert_callback
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.google.cloud.operators.dataproc import DataprocInstantiateWorkflowTemplateOperator
@@ -9,25 +10,14 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.state import State
 from airflow.utils.dates import days_ago
 from google.cloud import bigquery
 import datetime
 import logging
 
-default_args = {
-    "owner": "tenpo",
-    "depends_on_past" : False,
-    "start_date"      : days_ago( 1 ),
-    "retries"         : 1,
-    "retry_delay"     : datetime.timedelta( minutes = 10 ),
-    "email_on_failure": True,
-    "email_on_retry": False,
-    'catchup' : False
-}
-
 # DAG general parameters
 env = Variable.get('env')
+environment = Variable.get("environment")
 PROJECT_NAME = Variable.get(f'datalake_{env}')
 SOURCE_BUCKET = Variable.get(f'conciliacion_ops_bucket_{env}')
 TARGET_BUCKET = Variable.get(f'conciliacion_datalake_bucket_{env}')
@@ -40,6 +30,7 @@ INPUT_FILES = Variable.get(f"conciliacion_inputs_{env}")
 OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
 SQL_FOLDER = Variable.get(f'sql_folder_{env}')
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
+SLACK_CONN_ID = f"slack_conn-{environment}"
 
 # OPD Parameters
 REGION_OPD = Variable.get(f"region_opd_{env}")
@@ -100,6 +91,15 @@ RECARGAS_WORKERS = Variable.get(f"recargas_workers_{env}")
 RECARGAS_TYPE_FILE = Variable.get(f"type_file_recargas_{env}")
 RECARGAS_QUERY = Variable.get(f"recargas_gold_query_{env}")
 MATCH_QUERY_RECARGAS = Variable.get(f"recargas_match_query_{env}")
+
+# POS Parameters
+REGION_POS = Variable.get(f"region_pos_{env}")
+DATAPROC_TEMPLATE_POS = Variable.get(f'conciliacion_dataproc_template_pos_{env}')
+POS_PREFIX = Variable.get(f"pos_prefix_{env}")
+POS_WORKERS = Variable.get(f"pos_workers_{env}")
+POS_TYPE_FILE = Variable.get(f"type_file_pos_{env}")
+POS_QUERY = Variable.get(f"pos_gold_query_{env}")
+MATCH_QUERY_POS = Variable.get(f"pos_match_query_{env}")
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
@@ -174,11 +174,23 @@ def check_gold_tables(**kwargs):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
+# DAG args
+default_args = {
+    "owner": "tenpo",
+    "depends_on_past" : False,
+    "start_date"      : days_ago( 1 ),
+    "retries"         : 1,
+    "retry_delay"     : datetime.timedelta( minutes = 10 ),
+    "email_on_failure": True,
+    "email_on_retry": False,
+    'catchup' : False,
+    'on_failure_callback': get_task_success_slack_alert_callback(SLACK_CONN_ID)
+}
 
 #DAG
 with DAG(
     "tenpo_conciliaciones_prd",
-    schedule_interval='0 8,16,20 * * *',
+    schedule_interval=None,
     default_args=default_args
 ) as dag: 
 
@@ -186,11 +198,11 @@ with DAG(
 
     opd_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "opd_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=OPD_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
+        timeout=60*15,
         soft_fail = True
         )
 
@@ -254,11 +266,11 @@ with DAG(
     
     ipm_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "ipm_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=IPM_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
+        timeout=60*15,
         soft_fail = True
         )
     
@@ -340,11 +352,11 @@ with DAG(
 
     anulation_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "anulation_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=ANULATION_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
+        timeout=60*15,
         soft_fail = True
         )
     
@@ -408,11 +420,11 @@ with DAG(
 
     incident_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "incident_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=INCIDENT_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
+        timeout=60*15,
         soft_fail = True
         )
     
@@ -477,12 +489,12 @@ with DAG(
 
     cca_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "cca_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=CCA_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
+        timeout=60*15,
+        soft_fail = True
         )
     
     cca_file_availability = BranchPythonOperator(
@@ -563,12 +575,12 @@ with DAG(
 
     pdc_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "pdc_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=PDC_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
+        timeout=60*15,
+        soft_fail = True
         )
 
     pdc_file_availability = BranchPythonOperator(
@@ -649,12 +661,12 @@ with DAG(
 
     recargas_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "recargas_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=RECARGAS_PREFIX,
-        poke_interval=60*10 ,
+        poke_interval=60*5 ,
         mode='reschedule',
-        timeout=60*30,
-        soft_fail=True,
+        timeout=60*15,
+        soft_fail = True
         )
 
     recargas_file_availability = BranchPythonOperator(
@@ -731,6 +743,92 @@ with DAG(
         move_object=True
         ) 
 
+# POS Input conciliation process
+
+    pos_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "pos_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=POS_PREFIX,
+        poke_interval=60*5 ,
+        mode='reschedule',
+        timeout=60*15,
+        soft_fail = True
+        )
+
+    pos_file_availability = BranchPythonOperator(
+        task_id='pos_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'pos_sensor',
+            'dataproc_task' : 'dataproc_pos',
+            'check_tables' : 'check_gold_tables_updates'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+       
+    dataproc_pos = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_pos',
+        project_id=PROJECT_NAME,
+        region=REGION_POS,
+        template_id=DATAPROC_TEMPLATE_POS,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-pos-{DEPLOYMENT}',
+            'NUMWORKERS':POS_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{POS_PREFIX}*',
+            'TYPE_FILE':POS_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.pos_app',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+
+    read_pos_gold = PythonOperator(
+        task_id='read_pos_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": POS_QUERY
+        }
+        )  
+
+    execute_pos_gold = PythonOperator(
+        task_id='execute_pos_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_pos_gold') }}"
+        }
+        )
+        
+    read_match_pos = PythonOperator(
+        task_id='read_match_pos',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_POS
+        }
+        )
+
+    execute_match_pos = PythonOperator(
+        task_id='execute_match_pos',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_pos') }}"
+        }
+        )
+
+    move_files_pos = GCSToGCSOperator(
+        task_id='move_files_pos',
+        source_bucket=SOURCE_BUCKET,
+        source_objects=[f'{POS_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}pos/',
+        move_object=True
+        )
+
 # Check for gold tables updates
     check_gold_tables_updates = PythonOperator(
         task_id = 'check_gold_tables_updates',
@@ -749,26 +847,31 @@ with DAG(
 # Task dependencies
 
 start_task >> opd_sensor >> opd_file_availability >> [dataproc_opd, check_gold_tables_updates]
-start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, check_gold_tables_updates]
-start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, check_gold_tables_updates]
-start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, check_gold_tables_updates]
-start_task >> cca_sensor >> cca_file_availability >> [dataproc_cca, check_gold_tables_updates]
-start_task >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, check_gold_tables_updates]
-start_task >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
-
 dataproc_opd >> read_opd_gold >> execute_opd_gold >> check_gold_tables_updates 
+
+start_task >> ipm_sensor >> ipm_file_availability >> [dataproc_ipm, check_gold_tables_updates]
 dataproc_ipm >> read_ipm_gold >> execute_ipm_gold >> check_gold_tables_updates 
-dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> check_gold_tables_updates
-dataproc_incident >> read_incident_gold >> execute_incident_gold >> check_gold_tables_updates
-dataproc_cca >> read_cca_gold >> execute_cca_gold >> check_gold_tables_updates
+dataproc_ipm >> pdc_sensor >> pdc_file_availability >> [dataproc_pdc, check_gold_tables_updates]
 dataproc_pdc >> read_pdc_gold >> execute_pdc_gold >> check_gold_tables_updates
+
+start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anulation, check_gold_tables_updates]
+dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> check_gold_tables_updates
+dataproc_anulation >> pos_sensor >> pos_file_availability >>  [dataproc_pos, check_gold_tables_updates]
+dataproc_pos >> read_pos_gold >> execute_pos_gold >> check_gold_tables_updates
+
+start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, check_gold_tables_updates]
+dataproc_incident >> read_incident_gold >> execute_incident_gold >> check_gold_tables_updates
+dataproc_incident >> cca_sensor >> cca_file_availability >> [dataproc_cca, check_gold_tables_updates]
+dataproc_cca >> read_cca_gold >> execute_cca_gold >> check_gold_tables_updates
+dataproc_cca >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
 dataproc_recargas >> read_recargas_gold >> execute_recargas_gold >> check_gold_tables_updates
 
-check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas]
+check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas, read_match_pos]
 
 read_match_ipm >> execute_match_ipm >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
 read_match_cca >> execute_match_cca >> move_files_cca >> end_task
 read_match_pdc >> execute_match_pdc >> move_files_pdc >> end_task
 read_match_recargas >> execute_match_recargas >> move_files_recargas >> end_task
+read_match_pos >> execute_match_pos >> move_files_pos >> end_task
 
 
