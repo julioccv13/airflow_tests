@@ -4,7 +4,7 @@
     "conciliacion_source_project_prd": "conciliacion-ops-prod",
     "conciliacion_inputs_prd": "gs://tenpo-conciliacion-prd/",
     "conciliacion_datalake_bucket_prd": "tenpo-conciliacion-prd",
-    "conciliacion_ops_bucket_prd": "tenpo-conciliacion-prd",
+    "conciliacion_ops_bucket_prd": "storageproductioncluster-prod-replica",
     "conciliacion_dataset_prd": "tenpo-datalake-prod.tenpo_conciliacion_staging_prd",
     "conciliacion_deployment_prd": "prod",
     "conciliacion_dataproc_files_prd": "gs://tenpo-conciliacion-prd/artifacts/dataproc/",
@@ -92,7 +92,17 @@
     "pos_workers_prd":"0",
     "type_file_pos_prd" : "pos",
     "pos_gold_query_prd": "pos_staging_to_gold.sql",
-    "pos_match_query_prd": "match_opd_vs_pos.sql"
+    "pos_match_query_prd": "match_opd_vs_pos.sql",
+
+    "region_remesas_prd": "us-central1",
+    "conciliacion_dataproc_template_remesas_prd": "template_process_file_usc_small_prd",
+    "remesas_source_prd": "remesas-files/",
+    "remesas_prefix_prd": "new_input_files/remesas/TENPO_Daily_Periodic_",
+    "remesas_path_files_prd": "new_input_files/remesas/",
+    "remesas_workers_prd": 0,
+    "type_file_remesas_prd": "remesas",
+    "remesas_gold_query_prd": "remesas_staging_to_gold.sql",
+    "remesas_match_query_prd": "match_opd_vs_remesas.sql"
 }
 
 

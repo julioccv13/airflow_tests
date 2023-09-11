@@ -101,6 +101,15 @@ POS_TYPE_FILE = Variable.get(f"type_file_pos_{env}")
 POS_QUERY = Variable.get(f"pos_gold_query_{env}")
 MATCH_QUERY_POS = Variable.get(f"pos_match_query_{env}")
 
+# Remesas Parameters
+REGION_REMESAS = Variable.get(f"region_remesas_{env}")
+DATAPROC_TEMPLATE_REMESAS = Variable.get(f'conciliacion_dataproc_template_remesas_{env}')
+REMESAS_PREFIX = Variable.get(f"remesas_prefix_{env}")
+REMESAS_WORKERS = Variable.get(f"remesas_workers_{env}")
+REMESAS_TYPE_FILE = Variable.get(f"type_file_remesas_{env}")
+REMESAS_QUERY = Variable.get(f"remesas_gold_query_{env}")
+MATCH_QUERY_REMESAS = Variable.get(f"remesas_match_query_{env}")
+
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
     try:
@@ -150,7 +159,8 @@ def check_gold_tables(**kwargs):
         incident_status = ti.xcom_pull(task_ids='execute_incident_gold', key='status')
         cca_status = ti.xcom_pull(task_ids='execute_cca_gold', key='status')
         pdc_status = ti.xcom_pull(task_ids='execute_pdc_gold', key='status')
-        recargas_status = ti.xcom_pull(task_ids='execute_cargas_gold', key='status')
+        recargas_status = ti.xcom_pull(task_ids='execute_recargas_gold', key='status')
+        remesas_status = ti.xcom_pull(task_ids='execute_remesas_gold', key='status')
 
         if all(status == "success" for status in [ipm_status
                                                   , opd_status
@@ -158,7 +168,8 @@ def check_gold_tables(**kwargs):
                                                   , incident_status
                                                   , cca_status
                                                   , pdc_status
-                                                  , recargas_status]):
+                                                  , recargas_status
+                                                  , remesas_status]):
             print("All inputs processed")
         else:
             skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
@@ -168,6 +179,7 @@ def check_gold_tables(**kwargs):
                                                             , ('execute_cca_gold', cca_status)
                                                             , ('execute_pdc_gold', pdc_status)
                                                             , ('execute_recargas_gold', recargas_status)
+                                                            , ('execute_remesas_gold', remesas_status)
                                                         ] if status == "skipped"]
             print(f"Tasks {skipped_tasks} skipped")
 
@@ -255,10 +267,10 @@ with DAG(
     
     move_files_opd = GCSToGCSOperator(
         task_id='move_files_opd',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{OPD_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}opdV2/{OPD_PREFIX}',
+        destination_object=f'{BACKUP_FOLDER}opdV2/',
         move_object=True
         )
 
@@ -341,10 +353,10 @@ with DAG(
     
     move_files_ipm = GCSToGCSOperator(
         task_id='move_files_ipm',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{IPM_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}ipm/{IPM_PREFIX}',
+        destination_object=f'{BACKUP_FOLDER}ipm/',
         move_object=True
         )
 
@@ -409,10 +421,10 @@ with DAG(
     
     move_files_anulation = GCSToGCSOperator(
         task_id='move_files_anulation',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{ANULATION_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}anulation/{ANULATION_PREFIX}',
+        destination_object=f'{BACKUP_FOLDER}anulation/',
         move_object=True
         )
 
@@ -477,10 +489,10 @@ with DAG(
     
     move_files_incident = GCSToGCSOperator(
         task_id='move_files_incident',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{INCIDENT_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}incident/{INCIDENT_PREFIX}',
+        destination_object=f'{BACKUP_FOLDER}incident/',
         move_object=True
         ) 
     
@@ -564,7 +576,7 @@ with DAG(
     
     move_files_cca = GCSToGCSOperator(
         task_id='move_files_cca',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{CCA_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
         destination_object=f'{BACKUP_FOLDER}cca/',
@@ -650,7 +662,7 @@ with DAG(
     
     move_files_pdc = GCSToGCSOperator(
         task_id='move_files_pdc',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{PDC_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
         destination_object=f'{BACKUP_FOLDER}pdc/',
@@ -736,7 +748,7 @@ with DAG(
 
     move_files_recargas = GCSToGCSOperator(
         task_id='move_files_recargas',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{RECARGAS_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
         destination_object=f'{BACKUP_FOLDER}recargas/',
@@ -822,10 +834,96 @@ with DAG(
 
     move_files_pos = GCSToGCSOperator(
         task_id='move_files_pos',
-        source_bucket=SOURCE_BUCKET,
+        source_bucket=DATA_BUCKET,
         source_objects=[f'{POS_PREFIX}*'],
         destination_bucket=TARGET_BUCKET,
         destination_object=f'{BACKUP_FOLDER}pos/',
+        move_object=True
+        )
+    
+# REMESAS Input conciliation process
+
+    remesas_sensor = GCSObjectsWithPrefixExistenceSensor(
+        task_id= "remesas_sensor",
+        bucket=SOURCE_BUCKET,
+        prefix=REMESAS_PREFIX,
+        poke_interval=60*5 ,
+        mode='reschedule',
+        timeout=60*15,
+        soft_fail = True
+        )
+
+    remesas_file_availability = BranchPythonOperator(
+        task_id='remesas_file_availability',
+        python_callable=file_availability,
+        op_kwargs={
+            'sensor_task': 'remesas_sensor',
+            'dataproc_task' : 'dataproc_remesas',
+            'check_tables' : 'check_gold_tables_updates'         
+            },
+        provide_context=True,   
+        trigger_rule='all_done'
+        )
+       
+    dataproc_remesas = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_remesas',
+        project_id=PROJECT_NAME,
+        region=REGION_REMESAS,
+        template_id=DATAPROC_TEMPLATE_REMESAS,     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-remesas-{DEPLOYMENT}',
+            'NUMWORKERS':REMESAS_WORKERS,
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}{REMESAS_PREFIX}*',
+            'TYPE_FILE':REMESAS_TYPE_FILE,
+            'OUTPUT':f'{OUTPUT_DATASET}.remesas_app',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+
+    read_remesas_gold = PythonOperator(
+        task_id='read_remesas_gold',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": REMESAS_QUERY
+        }
+        )  
+
+    execute_remesas_gold = PythonOperator(
+        task_id='execute_remesas_gold',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_remesas_gold') }}"
+        }
+        )
+        
+    read_match_remesas = PythonOperator(
+        task_id='read_match_remesas',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_REMESAS
+        }
+        )
+
+    execute_match_remesas = PythonOperator(
+        task_id='execute_match_remesas',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_remesas') }}"
+        }
+        )
+
+    move_files_remesas = GCSToGCSOperator(
+        task_id='move_files_remesas',
+        source_bucket=DATA_BUCKET,
+        source_objects=[f'{REMESAS_PREFIX}*'],
+        destination_bucket=TARGET_BUCKET,
+        destination_object=f'{BACKUP_FOLDER}remesas/',
         move_object=True
         )
 
@@ -858,6 +956,8 @@ start_task >> anulation_sensor >> anulation_file_availability >> [dataproc_anula
 dataproc_anulation >> read_anulation_gold >> execute_anulation_gold >> check_gold_tables_updates
 dataproc_anulation >> pos_sensor >> pos_file_availability >>  [dataproc_pos, check_gold_tables_updates]
 dataproc_pos >> read_pos_gold >> execute_pos_gold >> check_gold_tables_updates
+dataproc_pos >> remesas_sensor >> remesas_file_availability >>  [dataproc_remesas, check_gold_tables_updates]
+dataproc_remesas >> read_remesas_gold >> execute_remesas_gold >> check_gold_tables_updates
 
 start_task >> incident_sensor >> incident_file_availability >> [dataproc_incident, check_gold_tables_updates]
 dataproc_incident >> read_incident_gold >> execute_incident_gold >> check_gold_tables_updates
@@ -866,12 +966,12 @@ dataproc_cca >> read_cca_gold >> execute_cca_gold >> check_gold_tables_updates
 dataproc_cca >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
 dataproc_recargas >> read_recargas_gold >> execute_recargas_gold >> check_gold_tables_updates
 
-check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas, read_match_pos]
+check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas, read_match_pos, read_match_remesas]
 
 read_match_ipm >> execute_match_ipm >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
 read_match_cca >> execute_match_cca >> move_files_cca >> end_task
 read_match_pdc >> execute_match_pdc >> move_files_pdc >> end_task
 read_match_recargas >> execute_match_recargas >> move_files_recargas >> end_task
 read_match_pos >> execute_match_pos >> move_files_pos >> end_task
-
+read_match_remesas >> execute_match_remesas >> move_files_remesas >> end_task
 

@@ -68,6 +68,11 @@ POS_PREFIX = Variable.get(f"pos_prefix_{env}")
 POS_SOURCE = Variable.get(f"pos_source_{env}")
 POS_PATH_FILES = Variable.get(f"pos_path_files_{env}")
 
+# Remesas Parameters
+REMESAS_PREFIX = Variable.get(f"remesas_prefix_{env}")
+REMESAS_SOURCE = Variable.get(f"remesas_source_{env}")
+REMESAS_PATH_FILES = Variable.get(f"remesas_path_files_{env}")
+
 # Invoke cloud function
 def invoke_cloud_function(**kwargs):
     try:
@@ -104,6 +109,7 @@ def cf_response(**kwargs):
         pdc_resp = ti.xcom_pull(task_ids='pdc_cf', key='cloud_function_response')
         pos_resp = ti.xcom_pull(task_ids='pos_cf', key='cloud_function_response')
         recargas_resp = ti.xcom_pull(task_ids='recargas_cf', key='cloud_function_response')
+        remesas_resp = ti.xcom_pull(task_ids='remesas_cf', key='cloud_function_response')
         if any(resp == "Done!!" for resp in [opd_resp
                                                   , ipm_resp
                                                   , anulation_resp
@@ -111,7 +117,8 @@ def cf_response(**kwargs):
                                                   , cca_resp
                                                   , pdc_resp
                                                   , recargas_resp
-                                                  , pos_resp]):
+                                                  , pos_resp
+                                                  , remesas_resp]):
             return 'trigger_task'
         return 'end_task'
     except Exception as e:
@@ -265,6 +272,22 @@ with DAG(
                 "input_path_files": POS_PATH_FILES
         }
         )
+    
+# Remesas process trigger
+    remesas_cf = PythonOperator(
+        task_id="remesas_cf"
+        , provide_context=True
+        , python_callable=invoke_cloud_function
+        , op_kwargs={
+                "project_source": SOURCE_PROJECT,
+                "project_target":PROJECT_NAME,
+                "bucket_source": SOURCE_BUCKET,
+                "bucket_target": TARGET_BUCKET,
+                "path_source": REMESAS_SOURCE,
+                "path_target": f'{BACKUP_FOLDER}remesas/',
+                "input_path_files": REMESAS_PATH_FILES
+        }
+        )
 
 # Dummy tasks       
     check_cf_results = BranchPythonOperator(
@@ -286,6 +309,6 @@ with DAG(
 
 
 
-start_task >> [opd_cf, ipm_cf, anulation_cf, incident_cf, cca_cf, pdc_cf, recargas_cf, pos_cf] >> check_cf_results >>[trigger_task, end_task]
+start_task >> [opd_cf, ipm_cf, anulation_cf, incident_cf, cca_cf, pdc_cf, recargas_cf, pos_cf, remesas_cf] >> check_cf_results >>[trigger_task, end_task]
 
 trigger_task >> end_task

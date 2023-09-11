@@ -61,7 +61,7 @@ def task_failure(context):
 
 with DAG(
     "tenpo_conciliaciones_sandbox_reprocess_gold",
-    schedule_interval='0 8,16,20 * * *',
+    schedule_interval='0 8,16,22 * * *',
     default_args=default_args
 ) as dag: 
 
