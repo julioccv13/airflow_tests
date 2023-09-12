@@ -86,7 +86,7 @@
 
     "region_pos_sandbox": "us-central1",
     "conciliacion_dataproc_template_pos_sandbox": "template_process_file_usc_small",
-    "pos_source_sandbox": "pos-files/",
+    "pos_source_sandbox": "carga-retiro-pos-files/",
     "pos_prefix_sandbox" : "data/new_files/pos/",
     "pos_path_files_sandbox": "data/new_files/pos/",
     "pos_workers_sandbox":"0",

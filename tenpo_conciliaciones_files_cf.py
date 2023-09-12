@@ -1,6 +1,7 @@
 from airflow.models import DAG
 from airflow.models import Variable
 from plugins.slack import get_task_success_slack_alert_callback
+from plugins.conciliacion import *
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
@@ -141,8 +142,9 @@ default_args = {
 #DAG
 with DAG(
     "tenpo_conciliaciones_files_cf",
-    schedule_interval='@hourly',
-    default_args=default_args
+    schedule_interval='0 8,16,22 * * *',
+    default_args=default_args,
+    catchup=False
 ) as dag: 
     
 # OPD Process trigger
@@ -156,7 +158,7 @@ with DAG(
                 "bucket_source": SOURCE_BUCKET,
                 "bucket_target": TARGET_BUCKET,
                 "path_source": OPD_SOURCE,
-                "path_target": f'{BACKUP_FOLDER}opd/',
+                "path_target": f'{BACKUP_FOLDER}opdV2/',
                 "input_path_files": OPD_PATH_FILES
         }
         )

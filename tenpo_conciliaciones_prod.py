@@ -1,6 +1,7 @@
 from airflow.models import DAG
 from airflow.models import Variable
 from plugins.slack import get_task_success_slack_alert_callback
+from plugins.conciliacion import *
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.google.cloud.operators.dataproc import DataprocInstantiateWorkflowTemplateOperator
@@ -110,82 +111,6 @@ REMESAS_TYPE_FILE = Variable.get(f"type_file_remesas_{env}")
 REMESAS_QUERY = Variable.get(f"remesas_gold_query_{env}")
 MATCH_QUERY_REMESAS = Variable.get(f"remesas_match_query_{env}")
 
-# Reads sql files from GCS bucket
-def read_gcs_sql(query):
-    try:
-        hook = GCSHook() 
-        object_name = f'{SQL_FOLDER}/{query}'
-        resp_byte = hook.download_as_byte_array(
-            bucket_name=DATA_BUCKET,
-            object_name=object_name,
-        )
-        resp_string = resp_byte.decode("utf-8")
-        logging.info(resp_string)
-        return resp_string
-    except Exception as e:
-        logging.error(f"Error occurred while reading SQL file from GCS: {str(e)}")
-
-# Execute sql files read from GCS bucket
-def query_bq(sql):
-    try:
-        hook = BigQueryHook(gcp_conn_id=GoogleBaseHook.default_conn_name, delegate_to=None, use_legacy_sql=False)
-        client = bigquery.Client(project=hook._get_field(PROJECT_NAME))
-        consulta = client.query(sql) 
-        if consulta.errors:
-            raise Exception('Query with ERROR')
-        else:
-            print('Query executed successfully!')
-    except Exception as e:
-        logging.error(f"Error occurred while executing BigQuery query: {str(e)}")
-
-# Take action depending if there is a file or not
-def file_availability(**kwargs):
-    try:
-        file_found = kwargs['ti'].xcom_pull(task_ids=kwargs['sensor_task'])
-        if file_found:
-            return kwargs['dataproc_task']
-        return kwargs['check_tables']
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return kwargs['check_tables'] 
-    
-# Check status of gold tables processing
-def check_gold_tables(**kwargs):
-    try:
-        ti = kwargs['ti']        
-        ipm_status = ti.xcom_pull(task_ids='execute_ipm_gold', key='status')
-        opd_status = ti.xcom_pull(task_ids='execute_opd_gold', key='status')
-        anulation_status = ti.xcom_pull(task_ids='execute_anulation_gold', key='status')
-        incident_status = ti.xcom_pull(task_ids='execute_incident_gold', key='status')
-        cca_status = ti.xcom_pull(task_ids='execute_cca_gold', key='status')
-        pdc_status = ti.xcom_pull(task_ids='execute_pdc_gold', key='status')
-        recargas_status = ti.xcom_pull(task_ids='execute_recargas_gold', key='status')
-        remesas_status = ti.xcom_pull(task_ids='execute_remesas_gold', key='status')
-
-        if all(status == "success" for status in [ipm_status
-                                                  , opd_status
-                                                  , anulation_status
-                                                  , incident_status
-                                                  , cca_status
-                                                  , pdc_status
-                                                  , recargas_status
-                                                  , remesas_status]):
-            print("All inputs processed")
-        else:
-            skipped_tasks = [task_id for task_id, status in [('execute_opd_gold', opd_status)
-                                                            , ('execute_ipm_gold', ipm_status)
-                                                            , ('execute_anulation_gold', anulation_status)
-                                                            , ('execute_incident_gold', incident_status)
-                                                            , ('execute_cca_gold', cca_status)
-                                                            , ('execute_pdc_gold', pdc_status)
-                                                            , ('execute_recargas_gold', recargas_status)
-                                                            , ('execute_remesas_gold', remesas_status)
-                                                        ] if status == "skipped"]
-            print(f"Tasks {skipped_tasks} skipped")
-
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-
 # DAG args
 default_args = {
     "owner": "tenpo",
@@ -215,7 +140,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
 
     opd_file_availability = BranchPythonOperator(
@@ -283,7 +209,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
     
     ipm_file_availability = BranchPythonOperator(
@@ -369,7 +296,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
     
     anulation_file_availability = BranchPythonOperator(
@@ -437,7 +365,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
     
     incident_file_availability = BranchPythonOperator(
@@ -506,7 +435,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
     
     cca_file_availability = BranchPythonOperator(
@@ -592,7 +522,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
 
     pdc_file_availability = BranchPythonOperator(
@@ -678,7 +609,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
 
     recargas_file_availability = BranchPythonOperator(
@@ -764,7 +696,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
 
     pos_file_availability = BranchPythonOperator(
@@ -850,7 +783,8 @@ with DAG(
         poke_interval=60*5 ,
         mode='reschedule',
         timeout=60*15,
-        soft_fail = True
+        soft_fail = True,
+        trigger_rule='none_failed'
         )
 
     remesas_file_availability = BranchPythonOperator(
