@@ -111,6 +111,12 @@ REMESAS_TYPE_FILE = Variable.get(f"type_file_remesas_{env}")
 REMESAS_QUERY = Variable.get(f"remesas_gold_query_{env}")
 MATCH_QUERY_REMESAS = Variable.get(f"remesas_match_query_{env}")
 
+# Premios Parameters
+MATCH_QUERY_REDEEMS = Variable.get(f"redeems_match_query_{env}")
+MATCH_QUERY_REFERRALS = Variable.get(f"referrals_match_query_{env}")
+MATCH_QUERY_REWARDS = Variable.get(f"rewards_match_query_{env}")
+
+
 # DAG args
 default_args = {
     "owner": "tenpo",
@@ -860,6 +866,61 @@ with DAG(
         destination_object=f'{BACKUP_FOLDER}remesas/',
         move_object=True
         )
+    
+# Rewards tables conciliation process
+    read_match_redeems = PythonOperator(
+        task_id='read_match_redeems',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_REDEEMS
+        }
+        )
+
+    read_match_referrals = PythonOperator(
+        task_id='read_match_referrals',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_REFERRALS
+        }
+        )
+
+    read_match_rewards = PythonOperator(
+        task_id='read_match_rewards',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_REWARDS
+        }
+        )
+
+    execute_match_redeems = PythonOperator(
+        task_id='execute_match_redeems',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_redeems') }}"
+        }
+        )
+    
+    execute_match_referrals = PythonOperator(
+        task_id='execute_match_referrals',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_referrals') }}"
+        }
+        )
+    
+    execute_match_rewards = PythonOperator(
+        task_id='execute_match_rewards',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_rewards') }}"
+        }
+        )
 
 # Check for gold tables updates
     check_gold_tables_updates = PythonOperator(
@@ -873,8 +934,6 @@ with DAG(
     start_task = DummyOperator( task_id = 'start')
 
     end_task = DummyOperator( task_id = 'end', trigger_rule='all_done'  )
-
-
 
 # Task dependencies
 
@@ -900,7 +959,16 @@ dataproc_cca >> read_cca_gold >> execute_cca_gold >> check_gold_tables_updates
 dataproc_cca >> recargas_sensor >> recargas_file_availability >>  [dataproc_recargas, check_gold_tables_updates]
 dataproc_recargas >> read_recargas_gold >> execute_recargas_gold >> check_gold_tables_updates
 
-check_gold_tables_updates >> [read_match_ipm, read_match_cca, read_match_cca, read_match_pdc, read_match_recargas, read_match_pos, read_match_remesas]
+check_gold_tables_updates >> [read_match_ipm
+                              , read_match_cca
+                              , read_match_cca
+                              , read_match_pdc
+                              , read_match_recargas
+                              , read_match_pos
+                              , read_match_remesas
+                              , read_match_redeems
+                              , read_match_referrals
+                              ,read_match_rewards]
 
 read_match_ipm >> execute_match_ipm >> [move_files_opd, move_files_ipm, move_files_anulation, move_files_incident] >> end_task
 read_match_cca >> execute_match_cca >> move_files_cca >> end_task
@@ -908,4 +976,6 @@ read_match_pdc >> execute_match_pdc >> move_files_pdc >> end_task
 read_match_recargas >> execute_match_recargas >> move_files_recargas >> end_task
 read_match_pos >> execute_match_pos >> move_files_pos >> end_task
 read_match_remesas >> execute_match_remesas >> move_files_remesas >> end_task
-
+read_match_redeems >> execute_match_redeems >> end_task
+read_match_referrals >> execute_match_referrals >> end_task
+read_match_rewards >> execute_match_rewards >> end_task

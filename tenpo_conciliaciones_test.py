@@ -1,6 +1,7 @@
+from airflow.decorators import task, dag    
 from airflow.models import DAG
 from airflow.models import Variable
-from airflow.decorators import task, dag
+from airflow.models.baseoperator import chain
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.google.cloud.operators.dataproc import DataprocInstantiateWorkflowTemplateOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
@@ -9,6 +10,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.dates import days_ago
 from google.cloud import bigquery
+from google.cloud import storage
 import datetime
 import logging
 import json
@@ -40,46 +42,19 @@ OUTPUT_DATASET = Variable.get(f"conciliacion_dataset_{env}")
 SQL_FOLDER = Variable.get(f'sql_folder_{env}')
 BACKUP_FOLDER = Variable.get(f"backup_folder_conciliacion_{env}")
 
-#DAG
-@dag(dag_id =  "tenpo_conciliaciones_recargas", schedule_interval='0 8,16,20 * * *', default_args=default_args)
-def tenpo_conciliaciones_recargas():
-    
-# Recargas input conciliation process     
-    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
-        task_id='dataproc_recargas',
-        project_id=PROJECT_NAME,
-        region="{{ dag_run.conf.region}}",
-        template_id="{{ dag_run.conf.dataproc_template}}",     
-        parameters={
-            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
-            'NUMWORKERS':"{{ dag_run.conf.workers}}",
-            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
-            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
-            'INPUT':f'"{{ dag_run.conf.prefix}}"*',
-            'TYPE_FILE':"{{ dag_run.conf.type_file}}",
-            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
-            'MODE_DEPLOY': DEPLOYMENT
-        },
-        )
-    
-    @task
-    def read_gcs_sql():
+@task
+def gold_query():
+        # Read sql file
         try:
             hook = GCSHook() 
-            object_name = f'{SQL_FOLDER}/"{{ dag_run.conf.query}}"'
+            object_name = f'{SQL_FOLDER}/"{{ dag_run.conf["query"]}}"'
             resp_byte = hook.download_as_byte_array(
                 bucket_name=DATA_BUCKET,
                 object_name=object_name,
             )
             resp_string = resp_byte.decode("utf-8")
-            logging.info(resp_string)
-            return resp_string
-        except Exception as e:
-            logging.error(f"Error occurred while reading SQL file from GCS: {str(e)}")
-
-    @task
-    def execute_query(resp_string):
-        try:
+            
+            # Execute sql query
             hook = BigQueryHook(gcp_conn_id=GoogleBaseHook.default_conn_name, delegate_to=None, use_legacy_sql=False)
             client = bigquery.Client(project=hook._get_field(PROJECT_NAME))
             consulta = client.query(resp_string) 
@@ -88,24 +63,72 @@ def tenpo_conciliaciones_recargas():
             else:
                 print('Query executed successfully!')
         except Exception as e:
-            logging.error(f"Error occurred while executing BigQuery query: {str(e)}")    
+            logging.error(f"Error occurred while executing BigQuery query: {str(e)}") 
+
+@task
+def create_unique_flag(bucket_name, flag_location, unique_flag):
+    # Write the unique flag to a file in Google Cloud Storage
+    client = storage.Client()
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob(flag_location + '/' + unique_flag)
+    blob.upload_from_string('DAG run completed')
+
+
+#DAG
+@dag(schedule_interval='0 8,16,20 * * *',
+         default_args=default_args,
+         start_date=days_ago(1)     
+)
+def tenpo_conciliaciones_test():
+
+# Recargas input conciliation process     
+    start_task = DummyOperator( task_id = 'start')
+
+    dataproc_recargas = DataprocInstantiateWorkflowTemplateOperator(
+        task_id='dataproc_recargas',
+        project_id=PROJECT_NAME,
+        region="{{ dag_run.conf['region]}}",
+        template_id="{{ dag_run.conf['dataproc_template']}}",     
+        parameters={
+            'CLUSTER': f'{CLUSTER}-recargas-{DEPLOYMENT}',
+            'NUMWORKERS':"{{ dag_run.conf['workers']}}",
+            'JOBFILE':f'{DATAPROC_FILES}{PYSPARK_FILE}',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'"{{ dag_run.conf["prefix"]}}"*',
+            'TYPE_FILE':"{{ dag_run.conf['type_file]}}",
+            'OUTPUT':f'{OUTPUT_DATASET}.recargas_app',
+            'MODE_DEPLOY': DEPLOYMENT
+        },
+        )
+    
+    _query = gold_query()
 
     move_files_recargas = GCSToGCSOperator(
         task_id='move_files_recargas',
         source_bucket=SOURCE_BUCKET,
-        source_objects=[f'"{{ dag_run.conf.prefix}}"*'],
+        source_objects=[f'"{{ dag_run.conf["prefix"]}}"*'],
         destination_bucket=TARGET_BUCKET,
         destination_object=f'{BACKUP_FOLDER}recargas/',
         move_object=True
         ) 
     
-# Dummy tasks        
-    start_task = DummyOperator( task_id = 'start')
-
+    _flag = create_unique_flag(bucket_name=DATA_BUCKET, flag_location= f'{DATA_BUCKET}/flags/', unique_flag = "{{ dag_run.conf['flag'] }}")
+    
     end_task = DummyOperator( task_id = 'end', trigger_rule='all_done'  )
 
-# Task dependencies
+    chain(
+        start_task,
+        dataproc_recargas,
+        _query,
+        move_files_recargas,
+        _flag,
+        end_task
+    )
 
-    start_task >> dataproc_recargas >> execute_query(read_gcs_sql()) >> move_files_recargas >> end_task
+tenpo_conciliaciones_test = tenpo_conciliaciones_test()
 
-tenpo_conciliaciones_recargas = tenpo_conciliaciones_recargas()
+
+
+
+
+

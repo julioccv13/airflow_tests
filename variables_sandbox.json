@@ -102,5 +102,9 @@
     "remesas_workers_sandbox": 0,
     "type_file_remesas_sandbox": "remesas",
     "remesas_gold_query_sandbox": "remesas_staging_to_gold.sql",
-    "remesas_match_query_sandbox": "match_opd_vs_remesas.sql"
+    "remesas_match_query_sandbox": "match_opd_vs_remesas.sql",
+
+    "redeems_match_query_sandbox": "match_opd_vs_redeems.sql",
+    "referrals_match_query_sandbox": "match_opd_vs_referrals.sql",
+    "rewards_match_query_sandbox": "match_opd_vs_rewards.sql"
 }
