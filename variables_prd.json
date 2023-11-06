@@ -68,7 +68,7 @@
     "conciliacion_dataproc_template_pdc_prd": "template_process_file_usc_small_prd",
     "pdc_source_prd": "pdc-files/",
     "pdc_prefix_prd" : "new_input_files/pdc/",
-    "pdc_path_files_prd": "new_input_files/pdc/PDC",
+    "pdc_path_files_prd": "new_input_files/pdc/",
     "pdc_workers_prd":"0",
     "type_file_pdc_prd" : "pdc",
     "pdc_gold_query_prd": "pdc_staging_to_gold.sql",
@@ -86,8 +86,8 @@
 
     "region_pos_prd": "us-central1",
     "conciliacion_dataproc_template_pos_prd": "template_process_file_usc_small_prd",
-    "pos_source_prd": "pos-files/",
-    "pos_prefix_prd" : "new_input_files/pos/pos",
+    "pos_source_prd": "carga-retiro-pos-files/",
+    "pos_prefix_prd" : "new_input_files/pos/",
     "pos_path_files_prd": "new_input_files/pos/",
     "pos_workers_prd":"0",
     "type_file_pos_prd" : "pos",
@@ -102,7 +102,11 @@
     "remesas_workers_prd": 0,
     "type_file_remesas_prd": "remesas",
     "remesas_gold_query_prd": "remesas_staging_to_gold.sql",
-    "remesas_match_query_prd": "match_opd_vs_remesas.sql"
+    "remesas_match_query_prd": "match_opd_vs_remesas.sql",
+
+    "redeems_match_query_prd": "match_opd_vs_redeems.sql",
+    "referrals_match_query_prd": "match_opd_vs_referrals.sql",
+    "rewards_match_query_prd": "match_opd_vs_rewards.sql"
 }
 
 

@@ -116,6 +116,9 @@ MATCH_QUERY_REDEEMS = Variable.get(f"redeems_match_query_{env}")
 MATCH_QUERY_REFERRALS = Variable.get(f"referrals_match_query_{env}")
 MATCH_QUERY_REWARDS = Variable.get(f"rewards_match_query_{env}")
 
+#P2P Parameters
+MATCH_QUERY_P2P = Variable.get(f"p2p_match_query_{env}")
+
 
 # DAG args
 default_args = {
@@ -200,9 +203,9 @@ with DAG(
     move_files_opd = GCSToGCSOperator(
         task_id='move_files_opd',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{OPD_PREFIX}*'],
+        source_object=f'{OPD_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}opdV2/',
+        destination_object=f'{BACKUP_FOLDER}opdV2/PLJ61110.FINT0003',
         move_object=True
         )
 
@@ -287,9 +290,9 @@ with DAG(
     move_files_ipm = GCSToGCSOperator(
         task_id='move_files_ipm',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{IPM_PREFIX}*'],
+        source_object=f'{IPM_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}ipm/',
+        destination_object=f'{BACKUP_FOLDER}ipm/MCI.AR.T112.M.E0073610.D',
         move_object=True
         )
 
@@ -356,9 +359,9 @@ with DAG(
     move_files_anulation = GCSToGCSOperator(
         task_id='move_files_anulation',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{ANULATION_PREFIX}*'],
+        source_object=f'{ANULATION_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}anulation/',
+        destination_object=f'{BACKUP_FOLDER}anulation/PLJ00032.TRXS.ANULADAS',
         move_object=True
         )
 
@@ -425,9 +428,9 @@ with DAG(
     move_files_incident = GCSToGCSOperator(
         task_id='move_files_incident',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{INCIDENT_PREFIX}*'],
+        source_object=f'{INCIDENT_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}incident/',
+        destination_object=f'{BACKUP_FOLDER}incident/PLJ62100-CONS-INC-PEND-TENPO',
         move_object=True
         ) 
     
@@ -513,9 +516,9 @@ with DAG(
     move_files_cca = GCSToGCSOperator(
         task_id='move_files_cca',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{CCA_PREFIX}*'],
+        source_object=f'{CCA_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}cca/',
+        destination_object=f'{BACKUP_FOLDER}cca/EX',
         move_object=True
         ) 
     
@@ -600,9 +603,9 @@ with DAG(
     move_files_pdc = GCSToGCSOperator(
         task_id='move_files_pdc',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{PDC_PREFIX}*'],
+        source_object=f'{PDC_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}pdc/',
+        destination_object=f'{BACKUP_FOLDER}pdc/reporte',
         move_object=True
         ) 
     
@@ -687,9 +690,9 @@ with DAG(
     move_files_recargas = GCSToGCSOperator(
         task_id='move_files_recargas',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{RECARGAS_PREFIX}*'],
+        source_object=f'{RECARGAS_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}recargas/',
+        destination_object=f'{BACKUP_FOLDER}recargas/reporte_servicio_recargas',
         move_object=True
         ) 
 
@@ -697,7 +700,7 @@ with DAG(
 
     pos_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "pos_sensor",
-        bucket=SOURCE_BUCKET,
+        bucket=DATA_BUCKET,
         prefix=POS_PREFIX,
         poke_interval=60*5 ,
         mode='reschedule',
@@ -774,13 +777,13 @@ with DAG(
     move_files_pos = GCSToGCSOperator(
         task_id='move_files_pos',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{POS_PREFIX}*'],
+        source_object=f'{POS_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}pos/',
+        destination_object=f'{BACKUP_FOLDER}pos/rendicion',
         move_object=True
         )
     
-# REMESAS Input conciliation process
+# Remesas Input conciliation process
 
     remesas_sensor = GCSObjectsWithPrefixExistenceSensor(
         task_id= "remesas_sensor",
@@ -861,9 +864,9 @@ with DAG(
     move_files_remesas = GCSToGCSOperator(
         task_id='move_files_remesas',
         source_bucket=DATA_BUCKET,
-        source_objects=[f'{REMESAS_PREFIX}*'],
+        source_object=f'{REMESAS_PREFIX}*',
         destination_bucket=TARGET_BUCKET,
-        destination_object=f'{BACKUP_FOLDER}remesas/',
+        destination_object=f'{BACKUP_FOLDER}remesas/TENPO_Daily_Periodic_',
         move_object=True
         )
     
@@ -919,6 +922,25 @@ with DAG(
         python_callable=query_bq,
         op_kwargs = {
         "sql": "{{ task_instance.xcom_pull(task_ids='read_match_rewards') }}"
+        }
+        )
+    
+# P2P Conciliation process
+    read_match_p2p = PythonOperator(
+        task_id='read_match_p2p',
+        provide_context=True,
+        python_callable=read_gcs_sql,
+        op_kwargs={
+        "query": MATCH_QUERY_P2P
+        }
+        )
+
+    execute_match_p2p = PythonOperator(
+        task_id='execute_match_p2p',
+        provide_context=True,
+        python_callable=query_bq,
+        op_kwargs = {
+        "sql": "{{ task_instance.xcom_pull(task_ids='read_match_p2p') }}"
         }
         )
 
@@ -979,3 +1001,4 @@ read_match_remesas >> execute_match_remesas >> move_files_remesas >> end_task
 read_match_redeems >> execute_match_redeems >> end_task
 read_match_referrals >> execute_match_referrals >> end_task
 read_match_rewards >> execute_match_rewards >> end_task
+read_match_p2p >> execute_match_p2p >> end_task

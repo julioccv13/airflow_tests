@@ -43,10 +43,17 @@ def read_gcs_sql(query):
             object_name=object_name,
         )
         resp_string = resp_byte.decode("utf-8")
+        logging.info(resp_string)
+        return resp_string
+    except Exception as e:
+        logging.error(f"Error occurred while reading SQL file from GCS: {str(e)}")
 
+# Execute sql files read from GCS bucket
+def query_bq(sql):
+    try:
         hook = BigQueryHook(gcp_conn_id=GoogleBaseHook.default_conn_name, delegate_to=None, use_legacy_sql=False)
         client = bigquery.Client(project=hook._get_field(PROJECT_NAME))
-        consulta = client.query(resp_string) 
+        consulta = client.query(sql) 
         if consulta.errors:
             raise Exception('Query with ERROR')
         else:
