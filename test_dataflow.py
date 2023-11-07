@@ -2,8 +2,8 @@
 import os
 import pendulum
 from datetime import datetime,timedelta
-from airflow.operators.empty import EmptyOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 from airflow import models
 from airflow.models import Variable
@@ -29,8 +29,8 @@ default_args = {
 	#'email':'',
 	#'email_on_failure':True,
 	#'email_on_retry':True,
-	'retries': 2,
-	'retry_delay': timedelta(minutes=2)
+	'retries': 1,
+	'retry_delay': timedelta(minutes=1)
 }
 
 with models.DAG(
@@ -42,7 +42,7 @@ with models.DAG(
 	tags = ['tenpo_load_opd_files'],
 	) as dag_java:
 
-	start_task = EmptyOperator( task_id = 'start')
+	start_task = DummyOperator( task_id = 'start')
 
 	load_data = DataflowCreateJavaJobOperator(
 		task_id = "load_data",
@@ -53,7 +53,9 @@ with models.DAG(
 		'pathFile':'gs://tenpo-mark-vii/dataflow_test/*',
 		'bigqueryDataset':'tenpo_conciliacion_staging_dev',
 		'bigqueryTable':'_staging',
-		'tempGCSBQBucket':'gs://tenpo-mark-vii/bigquery_temp_loads/',
+		'tempGCSBQBucketSuccess':'gs://tenpo-mark-vii/bigquery_temp_loads/success/',
+		'tempGCSBQBucketRejected':'gs://tenpo-mark-vii/bigquery_temp_loads/rejected/',
+		'typeMachine' : "n2-standard-4",
 		'minWorkers':5,
 		'maxWorkers':15,
 		},
@@ -63,6 +65,6 @@ with models.DAG(
 		location=GCP_REGION
 		)
 
-	end_task = EmptyOperator( task_id = 'end')
+	end_task = DummyOperator( task_id = 'end')
 
 start_task >> load_data >> end_task

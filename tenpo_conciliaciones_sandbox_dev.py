@@ -8,6 +8,7 @@ from airflow.providers.google.cloud.sensors.gcs import GCSObjectsWithPrefixExist
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from google.cloud import bigquery
@@ -20,15 +21,20 @@ default_args = {
     "start_date"      : days_ago( 1 ),
     "retries"         : 1,
     "retry_delay"     : datetime.timedelta( minutes= 10 ),
-    "email_on_failure": False,
+    "email_on_failure": True,
     "email_on_retry": False,
 }
 
 # DAG Variables used
 PROJECT_NAME = Variable.get('project1')
-SOURCE_BUCKET = 'mark-vii-conciliacion'
-TARGET_BUCKET = 'mark-vii-conciliacion'
+SOURCE_BUCKET = Variable.get('conciliacion_sandbox_bucket')
+TARGET_BUCKET = Variable.get('conciliacion_sandbox_bucket')
 PREFIX = 'sql'
+CLUSTER = Variable.get("conciliacion_dataproc_cluster")
+DATAPROC_FILES = Variable.get("conciliacion_dataproc_files")
+INPUT_FILES = Variable.get("conciliacion_inputs")
+OUTPUT_DATASET = Variable.get("conciliacion_dataset")
+deployment = Variable.get("deployment_conciliacion")
 
 # Reads sql files from GCS bucket
 def read_gcs_sql(query):
@@ -117,14 +123,14 @@ with DAG(
         region='us-central1',
         template_id='template_process_file',
         parameters={
-            'CLUSTER':'tenpo-ipm-prod',
+            'CLUSTER': f'{CLUSTER}-ipm-{deployment}',
             'NUMWORKERS':'4',
-            'JOBFILE':'gs://mark-vii-conciliacion/artifacts/dataproc/pyspark_data_process.py',
-            'FILES_OPERATORS':'gs://mark-vii-conciliacion/artifacts/dataproc/operators/*',
-            'INPUT':'gs://mark-vii-conciliacion/data/ipm/MCI.AR.T112.M.E0073610.D*',
+            'JOBFILE':f'{DATAPROC_FILES}pyspark_data_process.py',
+            'FILES_OPERATORS':f'{DATAPROC_FILES}operators/*',
+            'INPUT':f'{INPUT_FILES}ipm/MCI.AR.T112.M.E0073610.D*',
             'TYPE_FILE':'ipm',
-            'OUTPUT':'tenpo-datalake-sandbox.tenpo_conciliacion_staging_dev.ipm',
-            'MODE_DEPLOY':'prod'
+            'OUTPUT':f'{OUTPUT_DATASET}.ipm',
+            'MODE_DEPLOY':'environment'
         },
         )
 
@@ -184,7 +190,7 @@ with DAG(
         task_id='read_ipm_gold',
         provide_context=True,
         python_callable=read_gcs_sql,
-        op_kwargs={
+                op_kwargs={
         "query": "ipm_staging_to_gold.sql"
         }
         )
@@ -258,6 +264,7 @@ with DAG(
         task_id='read_match',
         provide_context=True,
         python_callable=read_gcs_sql,
+        trigger_rule=TriggerRule.ALL_DONE,
         op_kwargs={
         "query": "match.sql"
         }

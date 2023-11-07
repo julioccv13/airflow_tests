@@ -72,7 +72,7 @@ with DAG(
         }
         )
 
-    read_opd_gold = PythonOperator( 
+    read_opd_gold = PythonOperator(
         task_id='read_opd_gold',
         provide_context=True,
         python_callable=read_gcs_sql,
